@@ -1,0 +1,28 @@
+# Behavioral Intelligence Layer — Requirements
+# Install with: pip install -r requirements.txt
+
+# --- Online learning (core) ---
+river>=0.21.0               # Online ML — learns incrementally, no retraining
+
+# --- NLP / keyword extraction ---
+yake>=0.4.8                 # Lightweight keyword extractor, no GPU needed
+
+# --- HTTP server ---
+# (uses Python stdlib http.server — no extra dependency)
+
+# --- Optional: Ollama Python client (for LLM pipeline) ---
+ollama>=0.1.7               # Talk to local Ollama models (llama3, mistral, etc.)
+
+# --- Optional: faster async server (upgrade from stdlib) ---
+fastapi>=0.110.0            # Drop-in upgrade for production HTTP API
+uvicorn[standard]>=0.29.0   # ASGI server for FastAPI
+
+# --- Optional: Postgres event log (falls back to JSONL if not present) ---
+psycopg2-binary>=2.9.9      # PostgreSQL adapter
+
+# --- Optional: file watching (for folder pipeline) ---
+watchdog>=4.0.0             # Monitor folders for new files
+
+# --- Optional: vector similarity (for content embeddings) ---
+sentence-transformers>=2.7.0  # Embed text for semantic search
+numpy>=1.26.0
