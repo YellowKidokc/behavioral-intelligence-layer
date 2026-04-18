@@ -23,6 +23,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterable, Optional
 
+from bil.config import BIL_HOST as DEFAULT_HOST
+
 # File-size ceiling for "read a content snippet" and for ingestion at all.
 MAX_SNIPPET_BYTES = 2000
 MAX_FILE_BYTES = 50 * 1024 * 1024  # 50 MB
@@ -38,8 +40,6 @@ SKIP_NAMES = {".DS_Store", "Thumbs.db", "desktop.ini"}
 SKIP_DIRS = {"__pycache__", ".git", ".hg", ".svn", "node_modules",
              ".venv", "venv", ".mypy_cache", ".pytest_cache", ".idea",
              ".vscode"}
-
-DEFAULT_HOST = "http://192.168.1.177:8420"
 
 
 # ---------------------------------------------------------------------------
@@ -225,32 +225,32 @@ def main(argv: Optional[list] = None) -> int:
         print(f"[bil.ingest] path not found or not a directory: {root}", file=sys.stderr)
         return 2
 
-    # First pass: count so the progress line is informative.
-    files = list(iter_files(root))
-    total = len(files)
-    print(f"Ingesting {total} files from {root}...")
+    print(f"Ingesting files from {root}...")
 
+    seen = 0
     sent = 0
     failed = 0
     started = time.time()
-    for i, path in enumerate(files, 1):
+    for path in iter_files(root):
+        seen += 1
         signal = build_signal(path)
         if signal is None:
             continue
         if args.dry_run:
             print(json.dumps(asdict(signal), default=str))
             sent += 1
+        elif post_signal(args.host, signal):
+            sent += 1
         else:
-            if post_signal(args.host, signal):
-                sent += 1
-            else:
-                failed += 1
-        if i % 50 == 0 or i == total:
+            failed += 1
+        if seen % 50 == 0:
             elapsed = time.time() - started
-            print(f"  [{i}/{total}] sent={sent} failed={failed} "
+            print(f"  seen={seen} sent={sent} failed={failed} "
                   f"({elapsed:.1f}s elapsed)")
 
-    print(f"Sent {sent} signals. BIL now knows your file library.")
+    elapsed = time.time() - started
+    print(f"Sent {sent} signals from {seen} files in {elapsed:.1f}s. "
+          "BIL now knows your file library.")
     if failed:
         print(f"({failed} signals failed to POST — is the BIL server up at {args.host}?)")
     return 0 if failed == 0 else 1

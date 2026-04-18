@@ -154,6 +154,26 @@ Returns the same list with `bil_score` and `final_score` added, sorted best-firs
 
 ---
 
+## Configuration
+
+All default endpoints live in two small files — **edit them once for your
+network** or override per-invocation with the CLI flags below.
+
+| Where | What |
+|---|---|
+| `bil/config.py` | Python-side defaults. Reads `BIL_HOST`, `OLLAMA_HOST`, and `OLLAMA_MODEL` from the environment first, then falls back to the constants in the file. |
+| `browser/config.js` | Endpoint list the extension's service worker tries in order (first 2xx wins). |
+
+The reference deployment assumes a Synology NAS at `192.168.1.177` running
+BIL on `:8420` and Ollama on `:11434`. Change those constants to match your LAN.
+
+CLI overrides (always win over the config file):
+
+- `python -m bil.ingest --host http://my-nas:8420 --path ...`
+- `python -m bil.llm_query --bil http://my-nas:8420 --ollama http://my-nas:11434 --model mistral "..."`
+
+---
+
 ## Browser Extension
 
 A Manifest V3 extension lives in `browser/`. It works in Chrome and Edge and
@@ -163,10 +183,9 @@ bookmarks**, flushing one signal per tab to the BIL server on close.
 **Install (unpacked):**
 
 1. Open `chrome://extensions` (or `edge://extensions`) and enable Developer mode.
-2. Click **Load unpacked** and select the `browser/` folder from this repo.
-3. The extension posts to `http://192.168.1.177:8420/bil/web` and falls back to
-   `http://localhost:8420/bil/web`. Edit `BIL_ENDPOINTS` in
-   `browser/background.js` to point at a different NAS.
+2. Edit `browser/config.js` so `BIL_ENDPOINTS` points at your NAS (the default
+   is `http://192.168.1.177:8420/bil/web` with a `localhost` fallback).
+3. Click **Load unpacked** and select the `browser/` folder from this repo.
 
 Nothing leaves your network — every request targets an IP you control.
 

@@ -19,9 +19,10 @@ import urllib.request
 from pathlib import Path
 from typing import Optional
 
-DEFAULT_OLLAMA = "http://192.168.1.177:11434"
-DEFAULT_BIL = "http://192.168.1.177:8420"
-DEFAULT_MODEL = "llama3"
+from bil.config import BIL_HOST as DEFAULT_BIL
+from bil.config import OLLAMA_HOST as DEFAULT_OLLAMA
+from bil.config import OLLAMA_MODEL as DEFAULT_MODEL
+
 DEFAULT_EXPORTS = Path("exports")
 
 SYSTEM_PROMPT = (

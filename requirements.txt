@@ -27,9 +27,6 @@ watchdog>=4.0.0             # Monitor folders for new files
 pypdf2>=3.0.0               # Read text from PDF files
 python-docx>=1.0.0          # Read text from .docx files
 
-# --- HTTP client (LLM query + ingest retries) ---
-httpx>=0.25.0               # Async-capable HTTP client
-
 # --- Optional: vector similarity (for content embeddings) ---
 sentence-transformers>=2.7.0  # Embed text for semantic search
 numpy>=1.26.0

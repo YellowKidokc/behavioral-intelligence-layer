@@ -7,13 +7,16 @@
   let maxScrollDepth = 0;
   let copyCount = 0;
 
+  // Re-sampled on every flush so SPAs that inject content over time (Twitter,
+  // GitHub, infinite-scroll feeds) get an accurate count instead of the empty
+  // shell that loaded at document_idle.
   const estimateWordCount = () => {
     const txt = (document.body && document.body.innerText) || "";
     if (!txt) return 0;
     return txt.trim().split(/\s+/).filter(Boolean).length;
   };
 
-  const wordCount = estimateWordCount();
+  let wordCount = estimateWordCount();
 
   const updateScroll = () => {
     const height = Math.max(
@@ -34,12 +37,16 @@
     copyCount += 1;
   });
 
-  const snapshot = () => ({
-    time_on_page: (Date.now() - start) / 1000,
-    scroll_depth: maxScrollDepth,
-    copy_count: copyCount,
-    word_count: wordCount,
-  });
+  const snapshot = () => {
+    const fresh = estimateWordCount();
+    if (fresh > wordCount) wordCount = fresh;
+    return {
+      time_on_page: (Date.now() - start) / 1000,
+      scroll_depth: maxScrollDepth,
+      copy_count: copyCount,
+      word_count: wordCount,
+    };
+  };
 
   const send = () => {
     try {

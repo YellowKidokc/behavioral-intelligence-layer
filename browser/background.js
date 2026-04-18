@@ -4,9 +4,11 @@
 // word count, bookmark state) in chrome.storage.session and flushes them to the
 // self-hosted BIL server when the tab closes.
 //
-// Servers are tried in order; first successful POST wins.
-const BIL_ENDPOINTS = [
-  "http://192.168.1.177:8420/bil/web",
+// Endpoints come from browser/config.js — edit that file to point at your own
+// NAS. The list is tried in order; first 2xx response wins.
+importScripts("config.js");
+
+const BIL_ENDPOINTS = self.BIL_ENDPOINTS || [
   "http://localhost:8420/bil/web",
 ];
 
