@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Behavioral Intelligence Layer",
+  "version": "0.1.0",
+  "description": "Passively learns from your browsing (time, scroll, copy, bookmark) and feeds signals to your self-hosted BIL server.",
+  "permissions": [
+    "tabs",
+    "storage",
+    "scripting",
+    "activeTab",
+    "bookmarks"
+  ],
+  "host_permissions": [
+    "http://localhost:8420/*",
+    "http://192.168.1.177:8420/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "BIL — Behavioral Intelligence Layer"
+  }
+}

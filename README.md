@@ -47,18 +47,17 @@ YOUR DEVICES
 | Learn from web browsing (time, scroll, copy, bookmark) | ✅ Working |
 | Re-rank SearXNG search results | ✅ Working |
 | Online learning — updates instantly, no retraining | ✅ Working (River) |
-| Browser extension (Chrome/Edge) | ✅ Working |
+| Browser extension (Chrome/Edge, Manifest V3) | ✅ Working |
 | JSONL event log (no Postgres required) | ✅ Working |
 | Keyword extraction via YAKE | ✅ Working |
+| Folder ingestion pipeline (PDF / DOCX / text) | ✅ Working |
+| Ollama LLM front-end with digest context + feedback loop | ✅ Working |
 
 ## What's Coming (The Pipeline)
 
 | Capability | Priority |
 |---|---|
-| **Folder ingestion pipeline** — drop any folder in, BIL learns it | 🔜 Next |
-| **Ollama LLM front-end** — natural language preference queries | 🔜 Next |
 | **Tab order ranking** — BIL scores open tabs by predicted interest | 🔜 Next |
-| **Preference export** — daily JSON digest for AI session context | 🔜 Next |
 | **Network sync** — preferences sync across all devices via NAS | 🔜 Next |
 | Vector embeddings for semantic similarity | 📋 Planned |
 | Raindrop.io bookmark signal integration | 📋 Planned |
@@ -155,47 +154,90 @@ Returns the same list with `bil_score` and `final_score` added, sorted best-firs
 
 ---
 
+## Configuration
+
+All default endpoints live in two small files — **edit them once for your
+network** or override per-invocation with the CLI flags below.
+
+| Where | What |
+|---|---|
+| `bil/config.py` | Python-side defaults. Reads `BIL_HOST`, `OLLAMA_HOST`, and `OLLAMA_MODEL` from the environment first, then falls back to the constants in the file. |
+| `browser/config.js` | Endpoint list the extension's service worker tries in order (first 2xx wins). |
+
+The reference deployment assumes a Synology NAS at `192.168.1.177` running
+BIL on `:8420` and Ollama on `:11434`. Change those constants to match your LAN.
+
+CLI overrides (always win over the config file):
+
+- `python -m bil.ingest --host http://my-nas:8420 --path ...`
+- `python -m bil.llm_query --bil http://my-nas:8420 --ollama http://my-nas:11434 --model mistral "..."`
+
+---
+
 ## Browser Extension
 
-Install from `browser/` — works in Chrome and Edge.
+A Manifest V3 extension lives in `browser/`. It works in Chrome and Edge and
+passively tracks **time on page, scroll depth, copy events, word count, and
+bookmarks**, flushing one signal per tab to the BIL server on close.
 
-Passively tracks:
-- Time on page
-- Scroll depth (did you read it?)  
-- Copy events (did you use the content?)
-- Bookmarks (strong positive signal)
+**Install (unpacked):**
 
-Sends a single POST to `http://localhost:8420/bil/web` when you close a tab. **Nothing leaves your network.**
+1. Open `chrome://extensions` (or `edge://extensions`) and enable Developer mode.
+2. Edit `browser/config.js` so `BIL_ENDPOINTS` points at your NAS (the default
+   is `http://192.168.1.177:8420/bil/web` with a `localhost` fallback).
+3. Click **Load unpacked** and select the `browser/` folder from this repo.
+
+Nothing leaves your network — every request targets an IP you control.
 
 ---
 
-## Folder Pipeline (Coming Next)
+## Folder Ingestion
 
-Drop any folder in — BIL ingests it:
+Drop any folder in and BIL ingests it in a single pass:
 
 ```bash
+# On the NAS
 python -m bil.ingest --path "/volume1/Research/Physics"
 python -m bil.ingest --path "/volume1/Trading/Options"
-python -m bil.ingest --path "O:\_Theophysics_v3"
+
+# From a workstation, pointing at a different host
+python -m bil.ingest --path "O:/_Theophysics_v3" --host http://192.168.1.177:8420
+
+# Preview what would be sent without hitting the server
+python -m bil.ingest --path ./notes --dry-run
 ```
 
-BIL reads filenames, metadata, and content snippets, extracts keywords, and updates its domain/subject preference models. After ingestion, BIL knows what *kinds* of things matter to you — and can apply that to search ranking, tab sorting, and content scoring.
+For each file it extracts filename, extension, size, modified-days-ago, parent
+folder, a content snippet (text / `.md` / `.py` / `.pdf` / `.docx`) and YAKE
+keywords, then POSTs a `file_ingest` signal to `/bil/web`. Binary blobs over
+50 MB and junk like `.DS_Store`, `Thumbs.db`, `__pycache__`, `.git` are skipped
+automatically.
 
 ---
 
-## Ollama LLM Layer (Coming Next)
+## LLM Query
 
-Run any model locally via Ollama (`llama3`, `mistral`, `phi3`):
+Talk to a local Ollama model with your BIL digest loaded as context:
 
 ```bash
-# Pull a model
+# Pull a model (once)
 ollama pull llama3
 
-# BIL feeds it context
+# Ask a question — the latest digest is injected as system context
 python -m bil.llm_query "What should I focus on today based on my recent activity?"
+
+# Different model, different host
+python -m bil.llm_query "Summarize my week" --model mistral --ollama http://192.168.1.177:11434
+
+# After the reply prints, prompt to POST it back as a high-confidence signal
+python -m bil.llm_query "What topic owns my attention?" --feed-back
 ```
 
-The LLM reads BIL's daily digest and your preference models, generates a natural language understanding of your current focus, and that understanding feeds back into BIL as a high-confidence preference signal. **You get AI that knows you, running entirely on your hardware.**
+The command prefers the newest file in `exports/bil_digest_*.json`; if none
+exists it falls back to `GET /bil/export` on the BIL server. With
+`--feed-back`, the reply is re-submitted to `/bil/web` as an `llm_reflection`
+signal (`engagement_score=0.9`), closing the loop — the model's understanding
+of you becomes another training signal.
 
 ---
 

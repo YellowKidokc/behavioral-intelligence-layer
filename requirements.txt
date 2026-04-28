@@ -23,6 +23,10 @@ psycopg2-binary>=2.9.9      # PostgreSQL adapter
 # --- Optional: file watching (for folder pipeline) ---
 watchdog>=4.0.0             # Monitor folders for new files
 
+# --- Folder ingestion: content extraction from PDFs / Word docs ---
+pypdf2>=3.0.0               # Read text from PDF files
+python-docx>=1.0.0          # Read text from .docx files
+
 # --- Optional: vector similarity (for content embeddings) ---
 sentence-transformers>=2.7.0  # Embed text for semantic search
 numpy>=1.26.0
