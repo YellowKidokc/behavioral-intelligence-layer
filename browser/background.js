@@ -45,6 +45,7 @@ function buildPayload(state) {
     copy_count: state.copy_count || 0,
     bookmarked: !!state.bookmarked,
     word_count: state.word_count || 0,
+    text: state.text || "",
   };
 }
 
@@ -101,6 +102,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     copy_count: 0,
     word_count: 0,
     bookmarked: false,
+    text: "",
   });
 });
 

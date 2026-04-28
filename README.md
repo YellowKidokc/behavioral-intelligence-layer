@@ -129,8 +129,10 @@ pip install -r requirements.txt
 # 3. Start BIL server
 python -m bil.bil_server
 # → BIL listening on http://0.0.0.0:8420
-# → POST /bil/web   (browser behavioral signals)
-# → POST /bil/rank  (re-rank SearXNG results)
+# → POST /bil/web    (browser behavioral signals)
+# → POST /bil/rank   (re-rank SearXNG results)
+# → GET  /bil/export (today's digest as JSON)
+# → GET  /bil/status (uptime + per-model event counts)
 ```
 
 ---

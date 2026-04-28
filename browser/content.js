@@ -18,6 +18,15 @@
 
   let wordCount = estimateWordCount();
 
+  // Cap on the text snippet shipped to BIL so YAKE has something to work on
+  // without bloating the payload. The body text on most articles is well under
+  // this; long pages get truncated. Goes only to your self-hosted server.
+  const TEXT_SNIPPET_CHARS = 5000;
+  const sampleText = () => {
+    const txt = (document.body && document.body.innerText) || "";
+    return txt.slice(0, TEXT_SNIPPET_CHARS);
+  };
+
   const updateScroll = () => {
     const height = Math.max(
       document.body.scrollHeight || 0,
@@ -45,6 +54,7 @@
       scroll_depth: maxScrollDepth,
       copy_count: copyCount,
       word_count: wordCount,
+      text: sampleText(),
     };
   };
 

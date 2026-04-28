@@ -3,10 +3,18 @@ from datetime import datetime
 
 
 def extract_web_features(url: str, text: str, time_on_page: int = 0,
-                         scrolled_bottom: bool = False,
+                         scroll_depth: float = 0.0,
                          bookmarked: bool = False,
-                         copied: bool = False) -> tuple[dict, float]:
-    """Extract features and implicit signal from a web page visit."""
+                         copy_count: int = 0,
+                         word_count: int | None = None) -> tuple[dict, float]:
+    """Extract features and implicit signal from a web page visit.
+
+    ``scroll_depth`` is a 0-1 float (max fraction of the page actually scrolled
+    through). ``copy_count`` is the number of clipboard copy events on the
+    page. ``word_count`` lets the caller pass the browser's own estimate (the
+    rendered DOM) instead of recomputing it from ``text``, which is usually a
+    truncated snippet.
+    """
     from urllib.parse import urlparse
     import yake
 
@@ -18,19 +26,23 @@ def extract_web_features(url: str, text: str, time_on_page: int = 0,
 
     features = {
         "domain": domain,
-        "word_count": len(text.split()) if text else 0,
+        "word_count": word_count if word_count is not None else (len(text.split()) if text else 0),
         "has_equations": any(c in text for c in "\u222b\u2211\u220f\u2202\u2207\u03c7\u03c8\u03c6=") if text else False,
         "top_keywords": keywords,
         "time_of_day": datetime.now().hour,
         "time_on_page": time_on_page,
+        "scroll_depth": float(scroll_depth or 0.0),
+        "copy_count": int(copy_count or 0),
     }
 
     signal = 0.0
     if time_on_page > 60:
         signal += 0.2
-    if scrolled_bottom:
+    if scroll_depth >= 0.7:
         signal += 0.2
-    if copied:
+    elif scroll_depth >= 0.4:
+        signal += 0.1
+    if copy_count > 0:
         signal += 0.3
     if bookmarked:
         signal += 0.3
