@@ -1,0 +1,148 @@
+# PIL Engine Stack — docker-compose.yml
+# Drop this on your NAS at /volume1/PIL/
+# Run: docker-compose up -d
+#
+# What this adds to your existing stack:
+#   :8420  — BIL preference engine (already running locally, mirror here)
+#   :7860  — RAGFlow (fact checker + document RAG)
+#   :3000  — GPT-Researcher (autonomous research agent)  ← already have n8n on 3000, see note
+#   :8888  — Open WebUI (chat UI for all your Ollama models)
+#   :6333  — Qdrant (vector DB — better than Chroma for NAS)
+#   :8501  — PIL Dashboard (Streamlit — your daily digest UI)
+#
+# Your existing stack (don't touch):
+#   Ollama      :11434
+#   SearXNG     :8888  ← CONFLICT — change PIL dashboard to :8501
+#   n8n         :3000  ← CONFLICT — change GPT-Researcher to :3001
+#   Postgres    :5432 / :2665
+
+version: "3.9"
+
+services:
+
+  # ── FACT CHECKER ─────────────────────────────────────────────────────────────
+  # RAGFlow: ingests documents, answers questions with citations
+  # Feed it your Theophysics vault, research PDFs, clipboard exports
+  # UI: http://192.168.1.177:7860
+  ragflow:
+    image: infiniflow/ragflow:latest
+    container_name: pil-ragflow
+    ports:
+      - "7860:80"
+    volumes:
+      - /volume1/PIL/ragflow/data:/ragflow/data
+      - /volume1/PIL/ragflow/logs:/ragflow/logs
+    environment:
+      - MYSQL_PASSWORD=ragflow123
+    depends_on:
+      - ragflow-mysql
+      - ragflow-es
+    restart: unless-stopped
+
+  ragflow-mysql:
+    image: mysql:8.0
+    container_name: pil-ragflow-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ragflow123
+      MYSQL_DATABASE: ragflow
+    volumes:
+      - /volume1/PIL/ragflow/mysql:/var/lib/mysql
+    restart: unless-stopped
+
+  ragflow-es:
+    image: elasticsearch:8.11.3
+    container_name: pil-ragflow-es
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - /volume1/PIL/ragflow/es:/usr/share/elasticsearch/data
+    restart: unless-stopped
+
+  # ── IMAGE UNDERSTANDER ────────────────────────────────────────────────────────
+  # Open WebUI: chat UI that connects to your Ollama
+  # Gives you a clean interface to run moondream, llava, llama3
+  # Vision models: moondream (fast), llava (better detail), bakllava
+  # UI: http://192.168.1.177:8080
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: pil-open-webui
+    ports:
+      - "8080:8080"
+    volumes:
+      - /volume1/PIL/open-webui:/app/backend/data
+    environment:
+      - OLLAMA_BASE_URL=http://192.168.1.177:11434
+      - WEBUI_SECRET_KEY=pil2026david
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  # ── VECTOR DATABASE ───────────────────────────────────────────────────────────
+  # Qdrant: stores CLIP embeddings, text embeddings, screenshot vectors
+  # Everything gets embedded here — clipboard, repos, screenshots
+  # REST API: http://192.168.1.177:6333
+  # Dashboard: http://192.168.1.177:6333/dashboard
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: pil-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - /volume1/PIL/qdrant:/qdrant/storage
+    restart: unless-stopped
+
+  # ── RESEARCH AGENT ────────────────────────────────────────────────────────────
+  # GPT-Researcher: give it a topic, it builds a full research report
+  # Trigger from BIL when something scores high enough to go deeper
+  # UI: http://192.168.1.177:3001
+  gpt-researcher:
+    image: assafelovic/gpt-researcher:latest
+    container_name: pil-researcher
+    ports:
+      - "3001:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - TAVILY_API_KEY=${TAVILY_API_KEY:-}
+      - RETRIEVER=duckduckgo
+    volumes:
+      - /volume1/PIL/researcher/outputs:/usr/src/app/outputs
+    restart: unless-stopped
+
+  # ── EMBEDDING SERVICE ─────────────────────────────────────────────────────────
+  # Infinity: serves sentence-transformers models as an API
+  # Text embedding endpoint: POST http://192.168.1.177:7997/embeddings
+  # Drop-in OpenAI-compatible embedding API — free, local, fast
+  infinity:
+    image: michaelf34/infinity:latest
+    container_name: pil-embeddings
+    ports:
+      - "7997:7997"
+    command: v2 --model-name-or-path sentence-transformers/all-MiniLM-L6-v2 --port 7997
+    volumes:
+      - /volume1/PIL/infinity/models:/app/.cache
+    restart: unless-stopped
+
+  # ── PIL DASHBOARD ─────────────────────────────────────────────────────────────
+  # Streamlit dashboard: daily digest, top clips, preference scores
+  # Shows what Ollama synthesized, BIL ratings, capture count
+  # UI: http://192.168.1.177:8501
+  pil-dashboard:
+    image: python:3.11-slim
+    container_name: pil-dashboard
+    ports:
+      - "8501:8501"
+    volumes:
+      - /volume1/PIL/dashboard:/app
+      - /volume1/PIL/data:/data
+    working_dir: /app
+    command: >
+      bash -c "pip install streamlit requests plotly pandas -q &&
+               streamlit run dashboard.py --server.port 8501 --server.address 0.0.0.0"
+    restart: unless-stopped
+
+networks:
+  default:
+    name: pil-network

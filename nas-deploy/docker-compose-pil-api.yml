@@ -1,0 +1,19 @@
+version: "3.9"
+
+services:
+  bil-api:
+    image: python:3.11-slim
+    container_name: bil-api
+    ports:
+      - "8420:8420"
+    volumes:
+      - /volume1/brain:/data
+      - /volume1/brain/deploy:/app
+    working_dir: /app
+    environment:
+      - BIL_DATA_DIR=/data
+      - OLLAMA_URL=http://192.168.1.177:11434
+    command: >
+      bash -c "pip install --no-cache-dir fastapi uvicorn httpx python-multipart -q &&
+               uvicorn pil_api:app --host 0.0.0.0 --port 8420"
+    restart: unless-stopped

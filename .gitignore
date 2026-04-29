@@ -1,0 +1,53 @@
+# Data (runtime — never commit)
+data/captures/
+data/understood/
+data/ratings/
+data/github/
+data/memory/
+data/digests/
+data/logs/
+data/embeddings/
+*.jsonl
+*.png
+*.jpg
+*.jpeg
+*.webp
+
+# Keep directory structure
+!data/*/.gitkeep
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+venv/
+.venv/
+
+# Config with secrets (template is committed)
+.env
+bil_config.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# BIL runtime exports
+behavioral-intelligence-layer-OBS-Plugin-Final-Claude/exports/
+
+# Inbox
+inbox/
+
+# Temp
+*.tmp
+*.bak

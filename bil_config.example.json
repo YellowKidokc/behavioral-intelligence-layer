@@ -1,0 +1,28 @@
+{
+  "interval_minutes": 5,
+  "resolution": "full",
+  "nas_url": "https://brain.dlowehomelab.com",
+  "ollama_url": "http://localhost:11434/api/generate",
+  "ollama_url_remote": "https://ollama.dlowehomelab.com/api/generate",
+  "local_capture_dir": "D:\\BIL\\data\\captures",
+  "local_understood_dir": "D:\\BIL\\data\\understood",
+  "local_ratings_file": "D:\\BIL\\data\\ratings\\ratings.jsonl",
+  "inbox_dir": "D:\\BIL\\inbox",
+  "nas_brain_captures": "\\\\192.168.1.177\\BRAIN\\captures",
+  "nas_brain_inbox": "\\\\192.168.1.177\\BRAIN\\knowledge\\inbox",
+  "hotkey": "ctrl+alt+shift+p",
+  "auto_start_watcher": true,
+  "auto_start_inbox": true,
+
+  "threshold": {
+    "confidence_floor": 0.3,
+    "confidence_ceiling": 0.85,
+    "auto_progress_above": 0.7,
+    "kick_to_human_below": 0.4,
+    "reminder_interval_minutes": 5,
+    "auto_revert_hours": 24,
+    "escalation_model": "adaptive",
+    "training_period_days": 14,
+    "min_ratings_before_auto": 50
+  }
+}
