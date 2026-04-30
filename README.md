@@ -217,6 +217,44 @@ automatically.
 
 ---
 
+## File Intelligence Endpoints
+
+`/bil/classify`, `/bil/rename`, and `/bil/sort` use local Ollama models
+(default `moondream:latest` for images, `mistral:latest` for text) to
+classify, rename, and group files. Override the models with
+`BIL_VISION_MODEL` / `BIL_TEXT_MODEL` env vars.
+
+```bash
+# Classify a single file → category, prefix/suffix, suggested name, confidence.
+curl -X POST http://192.168.1.177:8420/bil/classify \
+  -H "Content-Type: application/json" \
+  -d '{"path": "/volume1/Inbox/unnamed.png"}'
+
+# Dry-run a folder rename: returns the plan without touching anything.
+curl -X POST http://192.168.1.177:8420/bil/rename \
+  -H "Content-Type: application/json" \
+  -d '{"path": "/volume1/Inbox", "dry_run": true}'
+
+# Execute the rename plan once you've reviewed it.
+curl -X POST http://192.168.1.177:8420/bil/rename \
+  -H "Content-Type: application/json" \
+  -d '{"path": "/volume1/Inbox", "dry_run": false}'
+
+# Group files into category subfolders under the output path.
+curl -X POST http://192.168.1.177:8420/bil/sort \
+  -H "Content-Type: application/json" \
+  -d '{"input_path": "/volume1/Unsorted",
+       "output_path": "/volume1/Sorted",
+       "mode": "content",
+       "dry_run": true}'
+```
+
+Files already matching the convention `<PREFIX>_<name>_<SUFFIX>.<ext>` are
+skipped on rename. Each request caps at `max_files: 200` (override per call)
+to keep classification runs bounded.
+
+---
+
 ## LLM Query
 
 Talk to a local Ollama model with your BIL digest loaded as context:
