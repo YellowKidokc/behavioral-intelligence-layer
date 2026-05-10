@@ -4,6 +4,11 @@
 
 Pause the personal dashboard after a minimal deployable shell. Return focus to BIL / the preference engine, because that is the portable "building machine" David can take across browsers, AIs, dashboards, and computers.
 
+All AI workers should start with:
+
+- `D:\BIL\UNIVERSAL_AI_WORKFLOW_PREAMBLE.md`
+- `D:\BIL\AI_COMMS_WORKFLOW_HANDOFF_2026-05-10.md`
+
 ## Dashboard Stop Line
 
 Good enough for now means:
@@ -107,6 +112,7 @@ Use rolling memory:
 ## Files
 
 - Dashboard visual shell: `D:\BIL\preference_engine_dashboard.html`
+- Universal workflow preamble: `D:\BIL\UNIVERSAL_AI_WORKFLOW_PREAMBLE.md`
 - Cloudflare/tunnel plan: `D:\BIL\CLOUDFLARE_TUNNEL_DASHBOARD_PLAN.md`
 - Preference architecture: `D:\BIL\PREFERENCE_ENGINE_REPO_SPEC.md`
 - Personal dashboard architecture: `D:\BIL\PERSONAL_DASHBOARD_ARCHITECTURE.md`

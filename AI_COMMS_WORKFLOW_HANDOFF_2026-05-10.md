@@ -8,6 +8,10 @@ Primary owner for coordination: Codex.
 
 Do not create a new dashboard product. Do not replace BIL. Do not fork the architecture unless David explicitly asks.
 
+Before doing anything else, read the universal workflow preamble:
+
+- `D:\BIL\UNIVERSAL_AI_WORKFLOW_PREAMBLE.md`
+
 ## Current Working Architecture
 
 BIL is the building machine.
@@ -59,6 +63,7 @@ Synology NAS becomes long-term cold storage for daily snapshots.
 
 ## Key Files
 
+- `D:\BIL\UNIVERSAL_AI_WORKFLOW_PREAMBLE.md`
 - `D:\BIL\BIL_NEXT_BUILDING_MACHINE_STEPS.md`
 - `D:\BIL\CLOUDFLARE_TUNNEL_DASHBOARD_PLAN.md`
 - `D:\BIL\THEOPHYSICS_COMMS_VECTOR_MEMORY_PLAN.md`
