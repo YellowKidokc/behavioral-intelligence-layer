@@ -44,6 +44,7 @@ Do not keep adding dashboard pages before BIL gets smarter.
    - `/bil/intake/today`
    - `/bil/open-loops`
    - `/bil/model-route`
+   - `/bil/comms/search`
 
 5. Add AI manager loop.
    - Manual button first: "Run Morning Briefing".
@@ -51,6 +52,13 @@ Do not keep adding dashboard pages before BIL gets smarter.
    - Local model handles cheap classification.
    - OpenAI/Anthropic only handle higher-value synthesis.
    - All proactive messages/actions require approval.
+
+6. Add Theophysics comms vector memory.
+   - Ingest session handoffs first.
+   - Store raw handoff metadata in D1.
+   - Store embeddings in Cloudflare Vectorize.
+   - Retrieve related handoffs when a new AI session starts.
+   - Use full conversations later, only after handoffs are working.
 
 ## Model Cost Policy
 
@@ -73,9 +81,24 @@ Use paid models only for:
 
 Never put API keys in frontend HTML. Keys live on the mini PC or in Cloudflare secrets.
 
+## Vector Memory Policy
+
+Vectorize the compressed handoffs before full conversations.
+
+Reason:
+
+- Handoffs are already curated memory.
+- They are cheaper.
+- They create less retrieval noise.
+- They are safer than raw chat logs.
+- They map naturally to the Theophysics AI Communications Hub.
+
+Cloudflare D1 should hold the comms ledger and metadata. Cloudflare Vectorize should hold semantic embeddings. BIL should be the layer that decides what gets embedded, what gets retrieved, and what gets shown to an AI.
+
 ## Files
 
 - Dashboard visual shell: `D:\BIL\preference_engine_dashboard.html`
 - Cloudflare/tunnel plan: `D:\BIL\CLOUDFLARE_TUNNEL_DASHBOARD_PLAN.md`
 - Preference architecture: `D:\BIL\PREFERENCE_ENGINE_REPO_SPEC.md`
 - Personal dashboard architecture: `D:\BIL\PERSONAL_DASHBOARD_ARCHITECTURE.md`
+- Comms/vector memory plan: `D:\BIL\THEOPHYSICS_COMMS_VECTOR_MEMORY_PLAN.md`
