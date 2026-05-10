@@ -25,6 +25,8 @@ class BILHandler(BaseHTTPRequestHandler):
 
         if p == "/bil/clipboard/predict":
             self._handle_clipboard_predict(parsed)
+        elif p == "/bil/context":
+            self._handle_context(parsed)
         elif p == "/bil/summary":
             self._handle_summary(parsed)
         elif p == "/bil/decide":
@@ -264,6 +266,60 @@ class BILHandler(BaseHTTPRequestHandler):
     def _handle_summary(self, parsed):
         qs = parse_qs(parsed.query)
         limit = int(qs.get("limit", ["10"])[0])
+        self._json_response(build_summary(self.bil, self.clipboard_history, limit=limit))
+
+    def _handle_context(self, parsed):
+        qs = parse_qs(parsed.query)
+        limit = int(qs.get("limit", ["8"])[0])
+        summary = build_summary(self.bil, self.clipboard_history, limit=limit)
+        self._json_response({
+            "status": "ok",
+            "generated_at": datetime.now().isoformat(),
+            "current_mode_guess": infer_mode(summary),
+            "working_memory": {
+                "recent_clipboard": summary["clipboard"]["recent"],
+                "top_domains": summary["domains"]["most_seen"],
+                "positive_domains": summary["domains"]["positive"],
+                "search_queries": summary["search"]["queries"],
+                "keywords": summary["keywords"],
+            },
+            "open_loops": [
+                {
+                    "title": "Reload browser extension",
+                    "why": "Load the unpacked extension from X:\\chrome-plugin to use the latest search and clipboard signals.",
+                    "target": "browser",
+                },
+                {
+                    "title": "Live-test SearXNG ranking",
+                    "why": "The re-ranker is implemented, but it needs a real SearXNG query/click test in Edge.",
+                    "target": "codex",
+                },
+                {
+                    "title": "Add paste/reuse detection",
+                    "why": "Clipboard copy is captured; stronger paste/reuse detection is the next preference signal.",
+                    "target": "bil",
+                },
+                {
+                    "title": "Define truth/fruits schemas",
+                    "why": "The personal dashboard needs first-pass fields for truthful/deceptive and fruits/coherence scoring.",
+                    "target": "dashboard",
+                },
+            ],
+            "suggested_next_actions": [
+                "Reload the unpacked extension from X:\\chrome-plugin.",
+                "Run one SearXNG search, click the result you actually wanted, then refresh the dashboard.",
+                "Use clipboard normally for a day so BIL can learn repeated clips.",
+                "Add truth/fruits scoring schema to the personal dashboard next.",
+            ],
+            "endpoints": {
+                "summary": "GET /bil/summary",
+                "rank": "POST /bil/rank",
+                "decide": "GET/POST /bil/decide",
+                "clipboard_predict": "GET /bil/clipboard/predict",
+            },
+        })
+
+    def _build_summary_deprecated(self, limit):
         events = read_jsonl(EVENTS_LOG, max_lines=5000)
         github_events = read_jsonl(GITHUB_EVENTS_LOG, max_lines=1000)
 
@@ -416,6 +472,109 @@ def load_clipboard_history():
 
 def top_pairs(counter, limit):
     return [{"name": name, "count": count} for name, count in counter.most_common(limit)]
+
+
+def build_summary(bil, clipboard_history, limit=10):
+    events = read_jsonl(EVENTS_LOG, max_lines=5000)
+    github_events = read_jsonl(GITHUB_EVENTS_LOG, max_lines=1000)
+
+    model_counts = Counter(e.get("model", "unknown") for e in events)
+    domains = Counter()
+    positive_domains = Counter()
+    negative_domains = Counter()
+    queries = Counter()
+    positions = []
+    keywords = Counter()
+    clipboard_counts = Counter()
+    clipboard_examples = {}
+    signal_by_domain = defaultdict(list)
+
+    for event in events:
+        features = event.get("features") or {}
+        signal = float(event.get("signal", 0) or 0)
+        domain = features.get("domain")
+        if domain:
+            domains[domain] += 1
+            signal_by_domain[domain].append(signal)
+            if signal >= 0.5:
+                positive_domains[domain] += 1
+            elif signal <= 0.1:
+                negative_domains[domain] += 1
+        if features.get("search_query"):
+            queries[features["search_query"]] += 1
+        if features.get("search_result_position") is not None:
+            positions.append(int(features.get("search_result_position") or 0))
+        for kw in features.get("top_keywords") or features.get("text_keywords") or []:
+            keywords[kw] += 1
+
+    for entry in clipboard_history:
+        text = (entry.get("text") or "").strip()
+        if not text:
+            continue
+        key = entry.get("hash") or text[:120]
+        clipboard_counts[key] += int(entry.get("repeat_count") or 1)
+        clipboard_examples[key] = text[:180]
+
+    domain_scores = []
+    for domain, signals in signal_by_domain.items():
+        avg = sum(signals) / len(signals)
+        domain_scores.append({
+            "domain": domain,
+            "events": len(signals),
+            "avg_signal": round(avg, 3),
+        })
+    domain_scores.sort(key=lambda x: (x["avg_signal"], x["events"]), reverse=True)
+
+    return {
+        "status": "ok",
+        "models": {name: model.get_summary() for name, model in bil.models.items()},
+        "events": {
+            "total": len(events),
+            "by_model": dict(model_counts),
+        },
+        "domains": {
+            "most_seen": top_pairs(domains, limit),
+            "positive": top_pairs(positive_domains, limit),
+            "quick_bounce": top_pairs(negative_domains, limit),
+            "ranked_by_signal": domain_scores[:limit],
+        },
+        "search": {
+            "queries": top_pairs(queries, limit),
+            "clicked_positions": {
+                "count": len(positions),
+                "average": round(sum(positions) / len(positions), 2) if positions else None,
+                "latest": positions[-10:],
+            },
+        },
+        "clipboard": {
+            "history_size": len(clipboard_history),
+            "recent": clipboard_history[-limit:][::-1],
+            "frequent": [
+                {"name": clipboard_examples.get(key, key), "count": count}
+                for key, count in clipboard_counts.most_common(limit)
+            ],
+        },
+        "keywords": top_pairs(keywords, limit),
+        "github": {
+            "events": len(github_events),
+            "recent": github_events[-limit:][::-1],
+        },
+    }
+
+
+def infer_mode(summary):
+    recent_clipboard = " ".join(item.get("text", "") for item in summary["clipboard"]["recent"][:3]).lower()
+    top_domains = [item["name"] for item in summary["domains"]["most_seen"][:5]]
+    keywords = [item["name"].lower() for item in summary["keywords"][:8]]
+    haystack = " ".join(top_domains + keywords + [recent_clipboard])
+
+    if any(term in haystack for term in ["github", "code", "api", "plugin", "python", "cloudflare"]):
+        return {"mode": "build", "confidence": 0.72}
+    if any(term in haystack for term in ["paper", "research", "theophysics", "equation", "youtube"]):
+        return {"mode": "research", "confidence": 0.68}
+    if any(term in haystack for term in ["gmail", "calendar", "dashboard", "nas"]):
+        return {"mode": "admin", "confidence": 0.6}
+    return {"mode": "mixed", "confidence": 0.5}
 
 
 def replay_historical_events(bil):
