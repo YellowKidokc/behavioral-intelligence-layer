@@ -70,6 +70,8 @@ Synology NAS becomes long-term cold storage for daily snapshots.
 - `D:\BIL\PREFERENCE_ENGINE_REPO_SPEC.md`
 - `D:\BIL\PERSONAL_DASHBOARD_ARCHITECTURE.md`
 - `D:\BIL\preference_engine_dashboard.html`
+- `D:\BIL\AUDIT_OPUS_LEDGER_2026-05-10.md`
+- `D:\BIL\AUDIT_OPUS_LEDGER_PROVENANCE_NOTE_2026-05-10.md`
 - `X:\chrome-plugin\`
 
 ## Git Checkpoint
