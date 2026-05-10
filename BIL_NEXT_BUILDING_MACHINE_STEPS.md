@@ -95,6 +95,15 @@ Reason:
 
 Cloudflare D1 should hold the comms ledger and metadata. Cloudflare Vectorize should hold semantic embeddings. BIL should be the layer that decides what gets embedded, what gets retrieved, and what gets shown to an AI.
 
+Use rolling memory:
+
+- 30 days hot by default.
+- 60 days optional if it stays useful and cheap.
+- Daily rollover snapshot to Synology NAS.
+- NAS keeps long-term raw/full archives.
+- Hot AI context gets summaries and handoffs, not the whole archive.
+- Older memory can be rehydrated only when a future task needs it.
+
 ## Files
 
 - Dashboard visual shell: `D:\BIL\preference_engine_dashboard.html`

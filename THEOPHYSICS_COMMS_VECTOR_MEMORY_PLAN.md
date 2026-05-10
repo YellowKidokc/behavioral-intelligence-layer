@@ -256,3 +256,54 @@ Build this order:
 6. Later add full-conversation chunking only when a handoff points back to a raw archive.
 
 This gives the personal dashboard and every AI session a real memory layer without spending much money or flooding retrieval with noise.
+
+## Rolling Memory Retention
+
+Use rolling memory instead of trying to keep everything hot forever.
+
+Default policy:
+
+- Keep the most recent 30 days in hot memory.
+- Optionally extend to 60 days if cost and retrieval quality stay good.
+- Export a daily snapshot before the day rolls over.
+- Store snapshots on the Synology NAS for long-term archive.
+- Keep raw/full conversations in NAS archive, not live AI context.
+- Keep handoff vectors live because they are compact and useful.
+
+Memory layers:
+
+- Hot: 30-day D1 + Vectorize working set.
+- Warm: 60-day optional D1 metadata/search window.
+- Cold: NAS archive of daily snapshots, raw handoffs, full conversations, exports, and compressed summaries.
+
+Daily rollover:
+
+1. Collect the day's comms messages, BIL events, handoffs, open loops, and daily summary.
+2. Save one dated snapshot file locally.
+3. Copy the snapshot to the Synology NAS.
+4. Keep compact handoff vectors in Vectorize.
+5. Remove or deprioritize older low-value vectors from hot retrieval.
+6. Keep an index record so old snapshots can be rehydrated later.
+
+Suggested NAS path:
+
+```text
+\\SynologyNAS\AI-Memory\BIL\Snapshots\YYYY\MM\YYYY-MM-DD\
+```
+
+Suggested files per day:
+
+```text
+daily-summary.md
+comms-handoffs.jsonl
+bil-events.jsonl
+open-loops.json
+vector-manifest.json
+raw-conversation-links.json
+```
+
+Rehydration rule:
+
+If a future question needs old memory, search the 30-day hot memory first. If the answer is not there, search the NAS snapshot index and rehydrate only the relevant old handoffs or summaries into the current context.
+
+This keeps token use controlled while preserving the long-term record.
