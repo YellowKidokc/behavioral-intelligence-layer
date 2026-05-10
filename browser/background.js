@@ -102,6 +102,7 @@ chrome.runtime.onMessage.addListener((message, sender) => {
         source: sender.tab.url || "",
         clicked_at: Date.now(),
       };
+      sendSkippedSearchSignals(message.data || {});
       break;
 
     case "github_data":
@@ -221,6 +222,31 @@ async function sendClipboardSignal(data, tab) {
       })
     });
   } catch (e) {}
+}
+
+async function sendSkippedSearchSignals(data) {
+  const skipped = data.skipped_results || [];
+  for (const result of skipped.slice(0, 10)) {
+    try {
+      await fetch(BIL_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: result.url,
+          title: result.title,
+          time_on_page: 0,
+          scrolledBottom: false,
+          copied: false,
+          bookmarked: false,
+          text_length: result.content?.length || 0,
+          text_preview: result.content || result.title || "",
+          search_query: data.query || "",
+          search_result_position: result.position,
+          search_source: "searxng_skipped",
+        })
+      });
+    } catch (e) {}
+  }
 }
 
 // ── Helper ────────────────────────────────────────────────────────────────────

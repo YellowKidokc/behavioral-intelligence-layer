@@ -223,6 +223,16 @@ document.addEventListener("click", (event) => {
       position,
       url: link.href,
       title: link.textContent?.trim() || "",
+      skipped_results: results.slice(0, Math.max(0, position - 1)).map((node, index) => {
+        const skippedLink = node.querySelector("h3 a[href], a[href]");
+        const skippedSnippet = node.querySelector(".content, p");
+        return {
+          position: index + 1,
+          url: skippedLink?.href || "",
+          title: skippedLink?.textContent?.trim() || "",
+          content: skippedSnippet?.textContent?.trim() || "",
+        };
+      }).filter(result => result.url && result.title),
     }
   });
 }, true);
