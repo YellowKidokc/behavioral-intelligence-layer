@@ -1,0 +1,1310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BRAIN — Preference Engine Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;600;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg-deep: #0a0c10;
+    --bg-panel: #111318;
+    --bg-card: #161920;
+    --bg-hover: #1c1f28;
+    --border: #1e2230;
+    --border-active: #2a3050;
+    --text-primary: #d8dce8;
+    --text-secondary: #7a8199;
+    --text-muted: #464d66;
+    --accent-blue: #4e8cff;
+    --accent-cyan: #22d3ee;
+    --accent-green: #34d399;
+    --accent-amber: #fbbf24;
+    --accent-red: #f87171;
+    --accent-purple: #a78bfa;
+    --glow-blue: rgba(78, 140, 255, 0.08);
+    --glow-green: rgba(52, 211, 153, 0.08);
+    --glow-amber: rgba(251, 191, 36, 0.08);
+  }
+
+  body {
+    background: var(--bg-deep);
+    color: var(--text-primary);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Subtle grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(78, 140, 255, 0.015) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(78, 140, 255, 0.015) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .dashboard {
+    position: relative;
+    z-index: 1;
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 24px 28px;
+  }
+
+  /* ── Header ── */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 28px;
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .brain-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    box-shadow: 0 0 20px rgba(78, 140, 255, 0.2);
+  }
+
+  .header-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: 2px;
+  }
+
+  .header-title span {
+    color: var(--text-muted);
+    font-weight: 300;
+    font-size: 13px;
+    letter-spacing: 1px;
+    margin-left: 10px;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    background: rgba(52, 211, 153, 0.08);
+    border: 1px solid rgba(52, 211, 153, 0.15);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--accent-green);
+    letter-spacing: 1px;
+  }
+
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent-green);
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; box-shadow: 0 0 4px var(--accent-green); }
+    50% { opacity: 0.4; box-shadow: none; }
+  }
+
+  .uptime {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  /* ── Top Stats Row ── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  .stat-card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s, background 0.3s;
+  }
+
+  .stat-card:hover {
+    border-color: var(--border-active);
+    background: var(--bg-card);
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+  }
+
+  .stat-card:nth-child(1)::before { background: var(--accent-blue); }
+  .stat-card:nth-child(2)::before { background: var(--accent-cyan); }
+  .stat-card:nth-child(3)::before { background: var(--accent-green); }
+  .stat-card:nth-child(4)::before { background: var(--accent-amber); }
+  .stat-card:nth-child(5)::before { background: var(--accent-purple); }
+
+  .stat-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .stat-card:nth-child(1) .stat-value { color: var(--accent-blue); }
+  .stat-card:nth-child(2) .stat-value { color: var(--accent-cyan); }
+  .stat-card:nth-child(3) .stat-value { color: var(--accent-green); }
+  .stat-card:nth-child(4) .stat-value { color: var(--accent-amber); }
+  .stat-card:nth-child(5) .stat-value { color: var(--accent-purple); }
+
+  .stat-sub {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ── Main Grid ── */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 380px;
+    gap: 20px;
+    margin-bottom: 28px;
+  }
+
+  .panel {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .panel-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .panel-title .icon {
+    font-size: 14px;
+  }
+
+  .panel-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: var(--bg-card);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+
+  .panel-body {
+    padding: 16px 20px;
+  }
+
+  /* ── Preference Clusters Panel ── */
+  .cluster-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(30, 34, 48, 0.5);
+  }
+
+  .cluster-item:last-child { border-bottom: none; }
+
+  .cluster-strength {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .cluster-info { flex: 1; min-width: 0; }
+
+  .cluster-name {
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .cluster-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .cluster-bar {
+    width: 80px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--bg-deep);
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .cluster-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 1s ease;
+  }
+
+  /* ── Clipboard Panel ── */
+  .clip-item {
+    padding: 10px 12px;
+    background: var(--bg-card);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    border: 1px solid transparent;
+    transition: border-color 0.2s;
+    cursor: default;
+  }
+
+  .clip-item:hover {
+    border-color: var(--border-active);
+  }
+
+  .clip-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 6px;
+  }
+
+  .clip-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .clip-count {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+
+  .clip-count.hot {
+    background: rgba(251, 191, 36, 0.1);
+    color: var(--accent-amber);
+  }
+
+  .clip-count.warm {
+    background: rgba(78, 140, 255, 0.1);
+    color: var(--accent-blue);
+  }
+
+  /* ── Activity Timeline ── */
+  .timeline-item {
+    display: flex;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(30, 34, 48, 0.3);
+  }
+
+  .timeline-item:last-child { border-bottom: none; }
+
+  .timeline-time {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    width: 50px;
+    flex-shrink: 0;
+    padding-top: 2px;
+  }
+
+  .timeline-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-top: 4px;
+    flex-shrink: 0;
+  }
+
+  .timeline-content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .timeline-action {
+    font-size: 12px;
+    color: var(--text-primary);
+    margin-bottom: 3px;
+  }
+
+  .timeline-detail {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ── Second Row Grid ── */
+  .second-grid {
+    display: grid;
+    grid-template-columns: 380px 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 28px;
+  }
+
+  /* ── Focus Heatmap ── */
+  .heatmap-grid {
+    display: grid;
+    grid-template-columns: repeat(24, 1fr);
+    gap: 3px;
+    margin-top: 8px;
+  }
+
+  .heat-cell {
+    aspect-ratio: 1;
+    border-radius: 3px;
+    background: var(--bg-card);
+    position: relative;
+    transition: transform 0.2s;
+  }
+
+  .heat-cell:hover {
+    transform: scale(1.4);
+    z-index: 2;
+  }
+
+  .heat-cell.l1 { background: rgba(78, 140, 255, 0.12); }
+  .heat-cell.l2 { background: rgba(78, 140, 255, 0.25); }
+  .heat-cell.l3 { background: rgba(78, 140, 255, 0.4); }
+  .heat-cell.l4 { background: rgba(78, 140, 255, 0.6); }
+  .heat-cell.l5 { background: rgba(78, 140, 255, 0.85); }
+
+  .heatmap-labels {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--text-muted);
+    margin-top: 6px;
+    padding: 0 2px;
+  }
+
+  .heatmap-row-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--text-muted);
+    text-align: right;
+    padding-right: 6px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    height: 100%;
+  }
+
+  .heatmap-row {
+    display: grid;
+    grid-template-columns: 32px 1fr;
+    align-items: center;
+    gap: 0;
+    margin-bottom: 3px;
+  }
+
+  .heatmap-row .heatmap-grid {
+    margin-top: 0;
+  }
+
+  /* ── Domain Preferences ── */
+  .domain-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(30, 34, 48, 0.3);
+  }
+
+  .domain-item:last-child { border-bottom: none; }
+
+  .domain-favicon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: var(--bg-card);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+
+  .domain-name {
+    flex: 1;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .domain-score {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 6px;
+  }
+
+  .domain-score.positive {
+    color: var(--accent-green);
+    background: rgba(52, 211, 153, 0.08);
+  }
+
+  .domain-score.neutral {
+    color: var(--text-muted);
+    background: var(--bg-card);
+  }
+
+  .domain-score.negative {
+    color: var(--accent-red);
+    background: rgba(248, 113, 113, 0.08);
+  }
+
+  .domain-visits {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    width: 40px;
+    text-align: right;
+  }
+
+  /* ── Window Layouts ── */
+  .layout-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 10px;
+    transition: border-color 0.2s;
+  }
+
+  .layout-card:hover {
+    border-color: var(--accent-blue);
+  }
+
+  .layout-name {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .layout-freq {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+
+  .layout-preview {
+    display: grid;
+    gap: 3px;
+    height: 48px;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .layout-preview.two-col {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .layout-preview.three-col {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  .layout-preview.main-side {
+    grid-template-columns: 2fr 1fr;
+  }
+
+  .layout-slot {
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    color: rgba(255,255,255,0.6);
+    letter-spacing: 0.5px;
+  }
+
+  /* ── Third Row ── */
+  .third-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 28px;
+  }
+
+  /* ── Dictation Corrections ── */
+  .correction-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    border-bottom: 1px solid rgba(30, 34, 48, 0.3);
+  }
+
+  .correction-item:last-child { border-bottom: none; }
+
+  .correction-from {
+    color: var(--accent-red);
+    text-decoration: line-through;
+    opacity: 0.7;
+    min-width: 120px;
+  }
+
+  .correction-arrow {
+    color: var(--text-muted);
+  }
+
+  .correction-to {
+    color: var(--accent-green);
+    min-width: 120px;
+  }
+
+  .correction-count {
+    color: var(--text-muted);
+    font-size: 10px;
+    margin-left: auto;
+  }
+
+  /* ── Energy Curve ── */
+  .energy-chart {
+    position: relative;
+    height: 120px;
+    margin-top: 8px;
+  }
+
+  .energy-svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* ── Capture Button (fixed) ── */
+  .capture-fab {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    box-shadow: 0 4px 24px rgba(78, 140, 255, 0.3);
+    transition: transform 0.2s, box-shadow 0.2s;
+    z-index: 100;
+  }
+
+  .capture-fab:hover {
+    transform: scale(1.08);
+    box-shadow: 0 6px 32px rgba(78, 140, 255, 0.45);
+  }
+
+  /* ── Bottom Footer ── */
+  .footer {
+    text-align: center;
+    padding: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 2px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* ── Animations ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .stat-card, .panel, .layout-card {
+    animation: fadeUp 0.5s ease forwards;
+  }
+
+  .stat-card:nth-child(1) { animation-delay: 0.05s; }
+  .stat-card:nth-child(2) { animation-delay: 0.1s; }
+  .stat-card:nth-child(3) { animation-delay: 0.15s; }
+  .stat-card:nth-child(4) { animation-delay: 0.2s; }
+  .stat-card:nth-child(5) { animation-delay: 0.25s; }
+
+  .main-grid .panel:nth-child(1) { animation-delay: 0.3s; }
+  .main-grid .panel:nth-child(2) { animation-delay: 0.35s; }
+  .main-grid .panel:nth-child(3) { animation-delay: 0.4s; }
+
+  /* Responsive */
+  @media (max-width: 1200px) {
+    .main-grid { grid-template-columns: 1fr 1fr; }
+    .second-grid { grid-template-columns: 1fr 1fr; }
+    .stats-row { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  @media (max-width: 800px) {
+    .main-grid, .second-grid, .third-grid { grid-template-columns: 1fr; }
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<div class="dashboard">
+
+  <!-- ══ Header ══ -->
+  <div class="header">
+    <div class="header-left">
+      <div class="brain-icon">🧠</div>
+      <div class="header-title">
+        BRAIN
+        <span>PREFERENCE ENGINE v0.3</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="status-pill">
+        <div class="status-dot"></div>
+        LEARNING
+      </div>
+      <div class="uptime">UPTIME 14d 6h 32m</div>
+    </div>
+  </div>
+
+  <!-- ══ Top Stats ══ -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">Events Captured</div>
+      <div class="stat-value">2,847</div>
+      <div class="stat-sub">+142 today</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Clipboard Entries</div>
+      <div class="stat-value">614</div>
+      <div class="stat-sub">38 pinned · 12 reused</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Pref Clusters</div>
+      <div class="stat-value">23</div>
+      <div class="stat-sub">4 strong · 11 forming</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Domains Scored</div>
+      <div class="stat-value">87</div>
+      <div class="stat-sub">14 positive · 6 bounced</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Snapshots</div>
+      <div class="stat-value">196</div>
+      <div class="stat-sub">31 👍 · 4 👎 · 161 auto</div>
+    </div>
+  </div>
+
+  <!-- ══ Main Grid — Row 1 ══ -->
+  <div class="main-grid">
+
+    <!-- Preference Clusters -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title"><span class="icon">◆</span> Preference Clusters</div>
+        <div class="panel-badge">23 ACTIVE</div>
+      </div>
+      <div class="panel-body">
+        <div class="cluster-item">
+          <div class="cluster-strength" style="background: var(--glow-blue); color: var(--accent-blue);">94</div>
+          <div class="cluster-info">
+            <div class="cluster-name">AI Research Conversations</div>
+            <div class="cluster-meta">487 signals · last 2m ago</div>
+          </div>
+          <div class="cluster-bar"><div class="cluster-bar-fill" style="width: 94%; background: var(--accent-blue);"></div></div>
+        </div>
+        <div class="cluster-item">
+          <div class="cluster-strength" style="background: var(--glow-green); color: var(--accent-green);">88</div>
+          <div class="cluster-info">
+            <div class="cluster-name">PostgreSQL / Database Work</div>
+            <div class="cluster-meta">312 signals · last 18m ago</div>
+          </div>
+          <div class="cluster-bar"><div class="cluster-bar-fill" style="width: 88%; background: var(--accent-green);"></div></div>
+        </div>
+        <div class="cluster-item">
+          <div class="cluster-strength" style="background: var(--glow-amber); color: var(--accent-amber);">81</div>
+          <div class="cluster-info">
+            <div class="cluster-name">Cloudflare Infrastructure</div>
+            <div class="cluster-meta">198 signals · last 1h ago</div>
+          </div>
+          <div class="cluster-bar"><div class="cluster-bar-fill" style="width: 81%; background: var(--accent-amber);"></div></div>
+        </div>
+        <div class="cluster-item">
+          <div class="cluster-strength" style="background: rgba(167, 139, 250, 0.08); color: var(--accent-purple);">74</div>
+          <div class="cluster-info">
+            <div class="cluster-name">Theophysics Article Writing</div>
+            <div class="cluster-meta">156 signals · last 3h ago</div>
+          </div>
+          <div class="cluster-bar"><div class="cluster-bar-fill" style="width: 74%; background: var(--accent-purple);"></div></div>
+        </div>
+        <div class="cluster-item">
+          <div class="cluster-strength" style="background: rgba(34, 211, 238, 0.08); color: var(--accent-cyan);">67</div>
+          <div class="cluster-info">
+            <div class="cluster-name">Python Development Patterns</div>
+            <div class="cluster-meta">134 signals · last 45m ago</div>
+          </div>
+          <div class="cluster-bar"><div class="cluster-bar-fill" style="width: 67%; background: var(--accent-cyan);"></div></div>
+        </div>
+        <div class="cluster-item">
+          <div class="cluster-strength" style="background: var(--bg-card); color: var(--text-muted);">41</div>
+          <div class="cluster-info">
+            <div class="cluster-name">Bible Study / Exegesis</div>
+            <div class="cluster-meta">89 signals · forming</div>
+          </div>
+          <div class="cluster-bar"><div class="cluster-bar-fill" style="width: 41%; background: var(--text-muted);"></div></div>
+        </div>
+        <div class="cluster-item">
+          <div class="cluster-strength" style="background: var(--bg-card); color: var(--text-muted);">28</div>
+          <div class="cluster-info">
+            <div class="cluster-name">Video / TikTok Content</div>
+            <div class="cluster-meta">52 signals · forming</div>
+          </div>
+          <div class="cluster-bar"><div class="cluster-bar-fill" style="width: 28%; background: var(--text-muted);"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Clipboard Intelligence -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title"><span class="icon">📋</span> Clipboard Intelligence</div>
+        <div class="panel-badge">LIVE</div>
+      </div>
+      <div class="panel-body">
+        <div class="clip-item">
+          <div class="clip-text">192.168.1.177:2665</div>
+          <div class="clip-meta">
+            <span>PostgreSQL connection</span>
+            <span class="clip-count hot">×14</span>
+          </div>
+        </div>
+        <div class="clip-item">
+          <div class="clip-text">SELECT * FROM canonical_nodes WHERE...</div>
+          <div class="clip-meta">
+            <span>SQL query pattern</span>
+            <span class="clip-count hot">×9</span>
+          </div>
+        </div>
+        <div class="clip-item">
+          <div class="clip-text">O:\_Theophysics_v4\00_Canonical\</div>
+          <div class="clip-meta">
+            <span>File path</span>
+            <span class="clip-count warm">×7</span>
+          </div>
+        </div>
+        <div class="clip-item">
+          <div class="clip-text">χ = ∭(G·M·E·S·T·K·R·Q·F·C)dxdydt</div>
+          <div class="clip-meta">
+            <span>Master Equation</span>
+            <span class="clip-count warm">×5</span>
+          </div>
+        </div>
+        <div class="clip-item">
+          <div class="clip-text">https://claude.ai/chat/</div>
+          <div class="clip-meta">
+            <span>URL — AI workspace</span>
+            <span class="clip-count warm">×4</span>
+          </div>
+        </div>
+        <div class="clip-item">
+          <div class="clip-text">faiththruphysics.com</div>
+          <div class="clip-meta">
+            <span>Domain reference</span>
+            <span class="clip-count warm">×4</span>
+          </div>
+        </div>
+        <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border);">
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); margin-bottom: 8px;">SUGGESTION</div>
+          <div style="font-size: 12px; color: var(--accent-amber); background: var(--glow-amber); padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(251,191,36,0.12);">
+            ⚡ Pin <span style="font-family: 'JetBrains Mono', monospace;">192.168.1.177:2665</span> — copied 14× this week, always pasted into terminal or config
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Activity Feed -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title"><span class="icon">◯</span> Live Feed</div>
+        <div class="panel-badge">STREAMING</div>
+      </div>
+      <div class="panel-body">
+        <div class="timeline-item">
+          <div class="timeline-time">now</div>
+          <div class="timeline-dot" style="background: var(--accent-green);"></div>
+          <div class="timeline-content">
+            <div class="timeline-action">Clipboard captured</div>
+            <div class="timeline-detail">SQL query · pgAdmin → Claude</div>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-time">2m</div>
+          <div class="timeline-dot" style="background: var(--accent-blue);"></div>
+          <div class="timeline-content">
+            <div class="timeline-action">Window layout detected</div>
+            <div class="timeline-detail">Claude + pgAdmin + Obsidian → "research" mode</div>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-time">8m</div>
+          <div class="timeline-dot" style="background: var(--accent-purple);"></div>
+          <div class="timeline-content">
+            <div class="timeline-action">Snapshot 📸 👍</div>
+            <div class="timeline-detail">Claude response · preference engine discussion</div>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-time">14m</div>
+          <div class="timeline-dot" style="background: var(--accent-cyan);"></div>
+          <div class="timeline-content">
+            <div class="timeline-action">Search pattern learned</div>
+            <div class="timeline-detail">Skipped results 1-4, clicked #5 (docs.cloudflare)</div>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-time">22m</div>
+          <div class="timeline-dot" style="background: var(--accent-amber);"></div>
+          <div class="timeline-content">
+            <div class="timeline-action">File save detected</div>
+            <div class="timeline-detail">Law9_canonical.md → 00_Canonical/</div>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-time">31m</div>
+          <div class="timeline-dot" style="background: var(--text-muted);"></div>
+          <div class="timeline-content">
+            <div class="timeline-action">Dictation correction</div>
+            <div class="timeline-detail">"Jim" → "Gemini" (×23 lifetime)</div>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-time">40m</div>
+          <div class="timeline-dot" style="background: var(--accent-green);"></div>
+          <div class="timeline-content">
+            <div class="timeline-action">Domain scored</div>
+            <div class="timeline-detail">semantic-scholar.org → +3 (67 total)</div>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-time">55m</div>
+          <div class="timeline-dot" style="background: var(--accent-red);"></div>
+          <div class="timeline-content">
+            <div class="timeline-action">Bounce detected</div>
+            <div class="timeline-detail">medium.com · &lt;3s dwell · -1 (score: -4)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Second Row ══ -->
+  <div class="second-grid">
+
+    <!-- Focus Heatmap -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title"><span class="icon">▦</span> Focus Heatmap</div>
+        <div class="panel-badge">7 DAYS</div>
+      </div>
+      <div class="panel-body">
+        <div id="heatmap-container"></div>
+        <div class="heatmap-labels">
+          <span>12a</span><span>3a</span><span>6a</span><span>9a</span><span>12p</span><span>3p</span><span>6p</span><span>9p</span>
+        </div>
+        <div style="margin-top: 14px; display: flex; align-items: center; gap: 16px;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <div style="width: 10px; height: 10px; border-radius: 2px; background: rgba(78,140,255,0.85);"></div>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted);">Deep work</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <div style="width: 10px; height: 10px; border-radius: 2px; background: rgba(78,140,255,0.25);"></div>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted);">Light</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <div style="width: 10px; height: 10px; border-radius: 2px; background: var(--bg-card);"></div>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted);">Idle</span>
+          </div>
+        </div>
+        <div style="margin-top: 14px; padding: 10px 12px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border);">
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--accent-cyan); margin-bottom: 4px;">INSIGHT</div>
+          <div style="font-size: 12px; color: var(--text-secondary);">Peak focus windows: <strong style="color: var(--text-primary);">6–9 AM</strong> and <strong style="color: var(--text-primary);">8–11 PM</strong>. Consistent dip 2–4 PM across all 7 days.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Domain Preferences -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title"><span class="icon">◉</span> Domain Preferences</div>
+        <div class="panel-badge">87 SCORED</div>
+      </div>
+      <div class="panel-body">
+        <div class="domain-item">
+          <div class="domain-favicon">📄</div>
+          <div class="domain-name">docs.cloudflare.com</div>
+          <div class="domain-score positive">+18</div>
+          <div class="domain-visits">142</div>
+        </div>
+        <div class="domain-item">
+          <div class="domain-favicon">🔬</div>
+          <div class="domain-name">semanticscholar.org</div>
+          <div class="domain-score positive">+14</div>
+          <div class="domain-visits">89</div>
+        </div>
+        <div class="domain-item">
+          <div class="domain-favicon">🐙</div>
+          <div class="domain-name">github.com</div>
+          <div class="domain-score positive">+12</div>
+          <div class="domain-visits">234</div>
+        </div>
+        <div class="domain-item">
+          <div class="domain-favicon">🤖</div>
+          <div class="domain-name">claude.ai</div>
+          <div class="domain-score positive">+11</div>
+          <div class="domain-visits">310</div>
+        </div>
+        <div class="domain-item">
+          <div class="domain-favicon">📊</div>
+          <div class="domain-name">stackoverflow.com</div>
+          <div class="domain-score positive">+8</div>
+          <div class="domain-visits">67</div>
+        </div>
+        <div class="domain-item" style="opacity: 0.5;">
+          <div class="domain-favicon">📰</div>
+          <div class="domain-name">medium.com</div>
+          <div class="domain-score negative">-4</div>
+          <div class="domain-visits">12</div>
+        </div>
+        <div class="domain-item" style="opacity: 0.5;">
+          <div class="domain-favicon">💬</div>
+          <div class="domain-name">reddit.com</div>
+          <div class="domain-score negative">-2</div>
+          <div class="domain-visits">8</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Window Layouts -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title"><span class="icon">⊞</span> Learned Layouts</div>
+        <div class="panel-badge">5 DETECTED</div>
+      </div>
+      <div class="panel-body">
+        <div class="layout-card">
+          <div class="layout-name">
+            Research Mode
+            <span class="layout-freq">used 47×</span>
+          </div>
+          <div class="layout-preview main-side">
+            <div class="layout-slot" style="background: rgba(78,140,255,0.2); border: 1px solid rgba(78,140,255,0.3);">CLAUDE</div>
+            <div style="display: grid; grid-template-rows: 1fr 1fr; gap: 3px;">
+              <div class="layout-slot" style="background: rgba(52,211,153,0.15); border: 1px solid rgba(52,211,153,0.2);">OBSIDIAN</div>
+              <div class="layout-slot" style="background: rgba(167,139,250,0.15); border: 1px solid rgba(167,139,250,0.2);">PGADMIN</div>
+            </div>
+          </div>
+        </div>
+        <div class="layout-card">
+          <div class="layout-name">
+            Build Mode
+            <span class="layout-freq">used 31×</span>
+          </div>
+          <div class="layout-preview two-col">
+            <div class="layout-slot" style="background: rgba(34,211,238,0.15); border: 1px solid rgba(34,211,238,0.2);">VS CODE</div>
+            <div class="layout-slot" style="background: rgba(251,191,36,0.15); border: 1px solid rgba(251,191,36,0.2);">TERMINAL</div>
+          </div>
+        </div>
+        <div class="layout-card">
+          <div class="layout-name">
+            Writing Mode
+            <span class="layout-freq">used 22×</span>
+          </div>
+          <div class="layout-preview main-side">
+            <div class="layout-slot" style="background: rgba(167,139,250,0.2); border: 1px solid rgba(167,139,250,0.3);">OBSIDIAN</div>
+            <div class="layout-slot" style="background: rgba(78,140,255,0.15); border: 1px solid rgba(78,140,255,0.2);">CLAUDE</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Third Row ══ -->
+  <div class="third-grid">
+
+    <!-- Dictation Corrections -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title"><span class="icon">🎙</span> Dictation Auto-Corrections</div>
+        <div class="panel-badge">LEARNING</div>
+      </div>
+      <div class="panel-body">
+        <div class="correction-item">
+          <span class="correction-from">Jim</span>
+          <span class="correction-arrow">→</span>
+          <span class="correction-to">Gemini</span>
+          <span class="correction-count">×23</span>
+        </div>
+        <div class="correction-item">
+          <span class="correction-from">codecs</span>
+          <span class="correction-arrow">→</span>
+          <span class="correction-to">Codex</span>
+          <span class="correction-count">×18</span>
+        </div>
+        <div class="correction-item">
+          <span class="correction-from">fee of physics</span>
+          <span class="correction-arrow">→</span>
+          <span class="correction-to">Theophysics</span>
+          <span class="correction-count">×15</span>
+        </div>
+        <div class="correction-item">
+          <span class="correction-from">clawed</span>
+          <span class="correction-arrow">→</span>
+          <span class="correction-to">Claude</span>
+          <span class="correction-count">×12</span>
+        </div>
+        <div class="correction-item">
+          <span class="correction-from">oblivion</span>
+          <span class="correction-arrow">→</span>
+          <span class="correction-to">Obsidian</span>
+          <span class="correction-count">×9</span>
+        </div>
+        <div class="correction-item">
+          <span class="correction-from">post grass</span>
+          <span class="correction-arrow">→</span>
+          <span class="correction-to">Postgres</span>
+          <span class="correction-count">×8</span>
+        </div>
+        <div class="correction-item">
+          <span class="correction-from">chi field</span>
+          <span class="correction-arrow">→</span>
+          <span class="correction-to">χ-field</span>
+          <span class="correction-count">×7</span>
+        </div>
+        <div class="correction-item">
+          <span class="correction-from">moon landing</span>
+          <span class="correction-arrow">→</span>
+          <span class="correction-to">moondream</span>
+          <span class="correction-count">×5</span>
+        </div>
+        <div style="margin-top: 14px; padding: 10px 12px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border);">
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--accent-green); margin-bottom: 4px;">AUTO-FIX READY</div>
+          <div style="font-size: 12px; color: var(--text-secondary);">8 corrections above 5× threshold. Enable auto-replace in voice-to-text pipeline?</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Energy / Context -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title"><span class="icon">⚡</span> Today's Context</div>
+        <div class="panel-badge">SAT MAY 10</div>
+      </div>
+      <div class="panel-body">
+        <div style="margin-bottom: 20px;">
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Energy Curve</div>
+          <svg viewBox="0 0 600 100" style="width: 100%; height: 80px;">
+            <defs>
+              <linearGradient id="energyFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="rgba(78,140,255,0.3)"/>
+                <stop offset="100%" stop-color="rgba(78,140,255,0)"/>
+              </linearGradient>
+            </defs>
+            <!-- Grid lines -->
+            <line x1="0" y1="25" x2="600" y2="25" stroke="rgba(30,34,48,0.5)" stroke-width="0.5"/>
+            <line x1="0" y1="50" x2="600" y2="50" stroke="rgba(30,34,48,0.5)" stroke-width="0.5"/>
+            <line x1="0" y1="75" x2="600" y2="75" stroke="rgba(30,34,48,0.5)" stroke-width="0.5"/>
+            <!-- Energy curve -->
+            <path d="M0,80 C25,75 50,40 75,25 C100,10 125,15 150,20 C175,25 200,30 225,35 C250,40 275,65 300,70 C325,75 350,72 375,65 C400,55 425,30 450,20 C475,10 500,15 525,18 C550,22 575,30 600,35" fill="url(#energyFill)" stroke="var(--accent-blue)" stroke-width="2"/>
+            <!-- Now marker -->
+            <line x1="275" y1="0" x2="275" y2="100" stroke="var(--accent-amber)" stroke-width="1" stroke-dasharray="3,3"/>
+            <circle cx="275" cy="38" r="4" fill="var(--accent-amber)"/>
+            <!-- Time labels -->
+            <text x="0" y="98" fill="var(--text-muted)" font-family="JetBrains Mono" font-size="8">6AM</text>
+            <text x="145" y="98" fill="var(--text-muted)" font-family="JetBrains Mono" font-size="8">9AM</text>
+            <text x="280" y="98" fill="var(--accent-amber)" font-family="JetBrains Mono" font-size="8" font-weight="600">NOW</text>
+            <text x="435" y="98" fill="var(--text-muted)" font-family="JetBrains Mono" font-size="8">6PM</text>
+            <text x="570" y="98" fill="var(--text-muted)" font-family="JetBrains Mono" font-size="8">11PM</text>
+          </svg>
+        </div>
+
+        <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Context Stack</div>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--bg-card); border-radius: 8px; border-left: 3px solid var(--accent-blue);">
+            <span style="font-size: 12px;">Active thread:</span>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent-blue);">Preference Engine Architecture</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--bg-card); border-radius: 8px; border-left: 3px solid var(--accent-purple);">
+            <span style="font-size: 12px;">Parked thread:</span>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent-purple);">GTQ Series — Article 22 edit</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--bg-card); border-radius: 8px; border-left: 3px solid var(--accent-green);">
+            <span style="font-size: 12px;">Last file saved:</span>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent-green);">PREFERENCE_ENGINE_REPO_SPEC.md</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--bg-card); border-radius: 8px; border-left: 3px solid var(--accent-amber);">
+            <span style="font-size: 12px;">Clipboard hot:</span>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent-amber);">192.168.1.177:2665</span>
+          </div>
+        </div>
+
+        <div style="margin-top: 16px; padding: 10px 12px; background: rgba(78,140,255,0.04); border-radius: 8px; border: 1px solid rgba(78,140,255,0.1);">
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--accent-blue); margin-bottom: 4px;">PREDICTION</div>
+          <div style="font-size: 12px; color: var(--text-secondary);">Based on pattern: you'll switch to Obsidian within ~20 min to cross-reference today's conversation. Pre-loading vault index.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Capture FAB ══ -->
+  <button class="capture-fab" title="Capture snapshot (Ctrl+Space)">📸</button>
+
+  <!-- ══ Footer ══ -->
+  <div class="footer">
+    BRAIN PREFERENCE ENGINE · POF 2828 · LEARNING SINCE APRIL 2026 · D:\BIL\
+  </div>
+
+</div>
+
+<script>
+  // Generate focus heatmap
+  const container = document.getElementById('heatmap-container');
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  // Simulated focus data — David's actual pattern: peak 6-9am, dip 2-4pm, second peak 8-11pm
+  const focusData = [
+    // Sun
+    [0,0,0,0,0,0,3,4,5,4,3,2,2,1,1,1,1,2,2,3,4,5,4,2],
+    // Mon
+    [0,0,0,0,0,1,4,5,5,3,3,2,2,1,0,1,1,2,3,4,5,5,4,1],
+    // Tue
+    [0,0,0,0,0,0,3,5,5,4,3,3,2,1,1,0,1,2,3,4,5,5,3,1],
+    // Wed
+    [0,0,0,0,0,1,4,5,4,3,2,2,2,1,0,1,2,2,3,5,5,4,3,1],
+    // Thu
+    [0,0,0,0,0,0,3,4,5,4,3,2,2,1,1,1,1,2,3,4,5,5,4,2],
+    // Fri
+    [0,0,0,0,0,1,4,5,5,3,2,2,1,1,0,0,1,2,3,4,5,4,3,1],
+    // Sat
+    [0,0,0,0,0,0,3,4,5,4,3,3,2,2,1,1,2,2,3,4,5,5,4,2],
+  ];
+
+  days.forEach((day, i) => {
+    const row = document.createElement('div');
+    row.className = 'heatmap-row';
+
+    const label = document.createElement('div');
+    label.className = 'heatmap-row-label';
+    label.textContent = day;
+    row.appendChild(label);
+
+    const grid = document.createElement('div');
+    grid.className = 'heatmap-grid';
+
+    focusData[i].forEach((level, hour) => {
+      const cell = document.createElement('div');
+      cell.className = `heat-cell ${level > 0 ? 'l' + level : ''}`;
+      cell.title = `${day} ${hour}:00 — ${['idle','light','moderate','focused','deep','peak'][level]}`;
+      grid.appendChild(cell);
+    });
+
+    row.appendChild(grid);
+    container.appendChild(row);
+  });
+
+  // Simulate live feed updates
+  const feedItems = document.querySelectorAll('.timeline-item');
+  feedItems.forEach((item, i) => {
+    item.style.opacity = '0';
+    item.style.transform = 'translateX(-8px)';
+    setTimeout(() => {
+      item.style.transition = 'opacity 0.4s, transform 0.4s';
+      item.style.opacity = '1';
+      item.style.transform = 'translateX(0)';
+    }, 500 + i * 100);
+  });
+</script>
+
+</body>
+</html>
