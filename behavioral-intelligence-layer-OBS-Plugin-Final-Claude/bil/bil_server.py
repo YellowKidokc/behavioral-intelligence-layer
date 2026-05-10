@@ -1,6 +1,7 @@
 """BIL HTTP server — receives behavioral signals, re-ranks search, clipboard intelligence."""
 import json
 import os
+from collections import Counter, defaultdict
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import urlparse, parse_qs
@@ -9,11 +10,14 @@ from bil.bil_api import BIL
 from bil.bil_features import extract_web_features, extract_clipboard_features
 
 GITHUB_EVENTS_LOG = r"D:\BIL\data\github\github_events.jsonl"
+EXPORT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "exports"))
+EVENTS_LOG = os.path.join(EXPORT_DIR, "bil_events.jsonl")
+CLIPBOARD_LOG = os.path.join(EXPORT_DIR, "clipboard_history.jsonl")
 
 
 class BILHandler(BaseHTTPRequestHandler):
     bil = BIL()
-    clipboard_history = []  # In-memory ring buffer of recent clips for prediction
+    clipboard_history = []  # Ring buffer of recent clips for prediction
 
     def do_GET(self):
         parsed = urlparse(self.path)
@@ -21,6 +25,8 @@ class BILHandler(BaseHTTPRequestHandler):
 
         if p == "/bil/clipboard/predict":
             self._handle_clipboard_predict(parsed)
+        elif p == "/bil/summary":
+            self._handle_summary(parsed)
         elif p == "/bil/decide":
             self._handle_decide(parsed)
         elif p == "/bil/status":
@@ -105,6 +111,7 @@ class BILHandler(BaseHTTPRequestHandler):
         self.clipboard_history.append(entry)
         if len(self.clipboard_history) > 500:
             self.clipboard_history = self.clipboard_history[-500:]
+        append_jsonl(CLIPBOARD_LOG, entry)
 
         self._json_response({"status": "ok", "score": entry["bil_score"]})
 
@@ -254,6 +261,81 @@ class BILHandler(BaseHTTPRequestHandler):
         scored.sort(key=lambda r: r["final_score"], reverse=True)
         self._json_response({"results": scored})
 
+    def _handle_summary(self, parsed):
+        qs = parse_qs(parsed.query)
+        limit = int(qs.get("limit", ["10"])[0])
+        events = read_jsonl(EVENTS_LOG, max_lines=5000)
+        github_events = read_jsonl(GITHUB_EVENTS_LOG, max_lines=1000)
+
+        model_counts = Counter(e.get("model", "unknown") for e in events)
+        domains = Counter()
+        positive_domains = Counter()
+        negative_domains = Counter()
+        queries = Counter()
+        positions = []
+        keywords = Counter()
+        signal_by_domain = defaultdict(list)
+
+        for event in events:
+            features = event.get("features") or {}
+            signal = float(event.get("signal", 0) or 0)
+            domain = features.get("domain")
+            if domain:
+                domains[domain] += 1
+                signal_by_domain[domain].append(signal)
+                if signal >= 0.5:
+                    positive_domains[domain] += 1
+                elif signal <= 0.1:
+                    negative_domains[domain] += 1
+            if features.get("search_query"):
+                queries[features["search_query"]] += 1
+            if features.get("search_result_position") is not None:
+                positions.append(int(features.get("search_result_position") or 0))
+            for kw in features.get("top_keywords") or features.get("text_keywords") or []:
+                keywords[kw] += 1
+
+        domain_scores = []
+        for domain, signals in signal_by_domain.items():
+            avg = sum(signals) / len(signals)
+            domain_scores.append({
+                "domain": domain,
+                "events": len(signals),
+                "avg_signal": round(avg, 3),
+            })
+        domain_scores.sort(key=lambda x: (x["avg_signal"], x["events"]), reverse=True)
+
+        self._json_response({
+            "status": "ok",
+            "models": {name: model.get_summary() for name, model in self.bil.models.items()},
+            "events": {
+                "total": len(events),
+                "by_model": dict(model_counts),
+            },
+            "domains": {
+                "most_seen": top_pairs(domains, limit),
+                "positive": top_pairs(positive_domains, limit),
+                "quick_bounce": top_pairs(negative_domains, limit),
+                "ranked_by_signal": domain_scores[:limit],
+            },
+            "search": {
+                "queries": top_pairs(queries, limit),
+                "clicked_positions": {
+                    "count": len(positions),
+                    "average": round(sum(positions) / len(positions), 2) if positions else None,
+                    "latest": positions[-10:],
+                },
+            },
+            "clipboard": {
+                "history_size": len(self.clipboard_history),
+                "recent": self.clipboard_history[-limit:][::-1],
+            },
+            "keywords": top_pairs(keywords, limit),
+            "github": {
+                "events": len(github_events),
+                "recent": github_events[-limit:][::-1],
+            },
+        })
+
     def _json_response(self, data: dict, status: int = 200):
         response = json.dumps(data).encode()
         self.send_response(status)
@@ -275,17 +357,70 @@ class BILHandler(BaseHTTPRequestHandler):
 
 
 def start_bil_server(port: int = 8420):
+    BILHandler.clipboard_history = load_clipboard_history()
+    replay_historical_events(BILHandler.bil)
     server = HTTPServer(("0.0.0.0", port), BILHandler)
     print(f"BIL server on http://0.0.0.0:{port}")
     print(f"  POST /bil/web          - learn from browser behavior")
     print(f"  POST /bil/clipboard    - learn from clipboard events")
     print(f"  POST /bil/rank         - re-rank SearXNG results")
     print(f"  POST /bil/github       - learn from GitHub repo events")
+    print(f"  GET  /bil/summary      - preference machine summary")
     print(f"  GET  /bil/decide       - score one URL/title/snippet")
     print(f"  POST /bil/decide       - score one candidate JSON object")
     print(f"  GET  /bil/clipboard/predict - get clipboard predictions")
     print(f"  GET  /bil/status       - server status + model stats")
     server.serve_forever()
+
+
+def append_jsonl(path, entry):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry, default=str) + "\n")
+
+
+def read_jsonl(path, max_lines=1000):
+    if not os.path.exists(path):
+        return []
+    items = []
+    with open(path, "r", encoding="utf-8") as f:
+        lines = f.readlines()
+    for line in lines[-max_lines:]:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            items.append(json.loads(line))
+        except Exception:
+            continue
+    return items
+
+
+def load_clipboard_history():
+    return read_jsonl(CLIPBOARD_LOG, max_lines=500)
+
+
+def top_pairs(counter, limit):
+    return [{"name": name, "count": count} for name, count in counter.most_common(limit)]
+
+
+def replay_historical_events(bil):
+    events = read_jsonl(EVENTS_LOG, max_lines=10000)
+    if not events:
+        return
+    current_count = sum(model.get_summary().get("event_count", 0) for model in bil.models.values())
+    if current_count >= int(len(events) * 0.8):
+        return
+    replayed = 0
+    for event in events:
+        model_name = event.get("model")
+        features = event.get("features")
+        signal = event.get("signal", 0)
+        if model_name in bil.models and isinstance(features, dict):
+            bil.models[model_name].learn(features, signal)
+            replayed += 1
+    if replayed and hasattr(bil, "_save_models"):
+        bil._save_models()
 
 
 if __name__ == "__main__":

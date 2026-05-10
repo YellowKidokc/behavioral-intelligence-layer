@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BIL Preference Machine</title>
+<style>
+:root{
+  --bg:#09090b;--panel:#101014;--panel2:#15151b;--line:#252532;
+  --text:#e4e4e7;--muted:#8a8a96;--dim:#5d5d68;--amber:#f59e0b;
+  --green:#10b981;--red:#ef4444;--blue:#60a5fa;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,Segoe UI,Arial,sans-serif}
+header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 22px;border-bottom:1px solid var(--line);background:#0d0d11}
+h1{margin:0;color:var(--amber);font-size:18px;letter-spacing:.3px}
+button{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px 12px;cursor:pointer}
+button:hover{border-color:var(--amber);color:var(--amber)}
+main{padding:18px;display:grid;grid-template-columns:repeat(12,1fr);gap:14px}
+.card{grid-column:span 4;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;min-width:0}
+.wide{grid-column:span 8}.full{grid-column:1/-1}
+h2{font-size:13px;margin:0 0 12px;color:var(--text);font-weight:650}
+.metric{display:flex;align-items:baseline;gap:8px;margin:8px 0}
+.metric strong{font-size:28px;color:var(--amber)}
+.metric span{color:var(--muted);font-size:12px}
+ol,ul{margin:0;padding-left:20px}
+li{margin:8px 0;color:var(--muted);font-size:13px;line-height:1.35}
+.row{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid #1c1c25;padding:7px 0;font-size:13px}
+.row:last-child{border-bottom:0}
+.name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+.count{color:var(--amber);font-family:Consolas,monospace;flex-shrink:0}
+.pill{display:inline-block;border-radius:999px;padding:3px 8px;font-size:11px;background:#f59e0b1a;color:var(--amber);margin:2px 4px 2px 0}
+.muted{color:var(--muted);font-size:12px}
+.ok{color:var(--green)}.bad{color:var(--red)}.info{color:var(--blue)}
+textarea{width:100%;min-height:96px;background:#0b0b0f;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:10px;resize:vertical}
+input{width:100%;background:#0b0b0f;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:9px}
+pre{white-space:pre-wrap;background:#0b0b0f;border:1px solid var(--line);border-radius:8px;padding:10px;color:var(--muted);max-height:240px;overflow:auto}
+@media(max-width:900px){.card,.wide{grid-column:1/-1}header{align-items:flex-start;flex-direction:column}}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>BIL Preference Machine</h1>
+    <div class="muted">Local-first signals: search, clipboard, browser behavior, GitHub.</div>
+  </div>
+  <button id="refreshBtn">Refresh</button>
+</header>
+<main>
+  <section class="card">
+    <h2>Machine State</h2>
+    <div class="metric"><strong id="eventTotal">-</strong><span>events observed</span></div>
+    <div class="metric"><strong id="clipTotal">-</strong><span>clipboard items</span></div>
+    <div class="metric"><strong id="searchAvg">-</strong><span>avg clicked result position</span></div>
+    <div id="models" class="muted"></div>
+  </section>
+
+  <section class="card">
+    <h2>Positive Domains</h2>
+    <div id="positiveDomains"></div>
+  </section>
+
+  <section class="card">
+    <h2>Quick Bounce / Skipped</h2>
+    <div id="bounceDomains"></div>
+  </section>
+
+  <section class="wide">
+    <h2>Domain Signal Ranking</h2>
+    <div id="domainScores"></div>
+  </section>
+
+  <section class="card">
+    <h2>Search Queries</h2>
+    <div id="queries"></div>
+  </section>
+
+  <section class="card">
+    <h2>Keywords</h2>
+    <div id="keywords"></div>
+  </section>
+
+  <section class="wide">
+    <h2>Recent Clipboard</h2>
+    <div id="clipboard"></div>
+  </section>
+
+  <section class="card">
+    <h2>Score A Candidate</h2>
+    <input id="candidateUrl" placeholder="URL">
+    <div style="height:8px"></div>
+    <input id="candidateTitle" placeholder="Title">
+    <div style="height:8px"></div>
+    <textarea id="candidateContent" placeholder="Snippet or notes"></textarea>
+    <div style="height:8px"></div>
+    <button id="scoreBtn">Score</button>
+  </section>
+
+  <section class="card">
+    <h2>Decision</h2>
+    <pre id="decisionOut">No candidate scored yet.</pre>
+  </section>
+</main>
+<script>
+const API = "http://localhost:8420";
+
+function rows(items, opts = {}) {
+  if (!items || !items.length) return '<div class="muted">No data yet.</div>';
+  return items.map(item => {
+    const name = item.name ?? item.domain ?? item.text ?? '';
+    const count = item.count ?? item.events ?? item.score ?? item.avg_signal ?? '';
+    const suffix = opts.signal && item.avg_signal != null ? ` avg ${item.avg_signal}` : count;
+    return `<div class="row"><span class="name" title="${escapeHtml(name)}">${escapeHtml(name)}</span><span class="count">${escapeHtml(String(suffix))}</span></div>`;
+  }).join('');
+}
+
+function pills(items) {
+  if (!items || !items.length) return '<div class="muted">No data yet.</div>';
+  return items.map(item => `<span class="pill">${escapeHtml(item.name)} ${item.count}</span>`).join('');
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+async function refresh() {
+  try {
+    const res = await fetch(`${API}/bil/summary?limit=12`);
+    const data = await res.json();
+    document.getElementById('eventTotal').textContent = data.events?.total ?? 0;
+    document.getElementById('clipTotal').textContent = data.clipboard?.history_size ?? 0;
+    document.getElementById('searchAvg').textContent = data.search?.clicked_positions?.average ?? '-';
+    document.getElementById('models').innerHTML = Object.entries(data.models || {})
+      .map(([name, model]) => `<span class="pill">${name}: ${model.event_count}</span>`).join('');
+    document.getElementById('positiveDomains').innerHTML = rows(data.domains?.positive);
+    document.getElementById('bounceDomains').innerHTML = rows(data.domains?.quick_bounce);
+    document.getElementById('domainScores').innerHTML = rows(data.domains?.ranked_by_signal, { signal: true });
+    document.getElementById('queries').innerHTML = rows(data.search?.queries);
+    document.getElementById('keywords').innerHTML = pills(data.keywords);
+    document.getElementById('clipboard').innerHTML = rows(data.clipboard?.recent?.map(item => ({
+      name: `${item.text || ''}`,
+      count: item.score ?? item.bil_score ?? ''
+    })));
+  } catch (err) {
+    document.getElementById('models').innerHTML = `<span class="bad">BIL not reachable: ${escapeHtml(err.message)}</span>`;
+  }
+}
+
+async function scoreCandidate() {
+  const body = {
+    url: document.getElementById('candidateUrl').value,
+    title: document.getElementById('candidateTitle').value,
+    content: document.getElementById('candidateContent').value,
+    engine: 'dashboard',
+    score: 1,
+  };
+  const res = await fetch(`${API}/bil/decide`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  document.getElementById('decisionOut').textContent = JSON.stringify(await res.json(), null, 2);
+}
+
+document.getElementById('refreshBtn').addEventListener('click', refresh);
+document.getElementById('scoreBtn').addEventListener('click', scoreCandidate);
+refresh();
+</script>
+</body>
+</html>
