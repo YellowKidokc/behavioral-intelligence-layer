@@ -25,6 +25,14 @@ document.addEventListener("copy", () => {
   if (sentCopied) return;
   sentCopied = true;
   chrome.runtime.sendMessage({ type: "copied" });
+
+  const text = window.getSelection()?.toString() || "";
+  if (text.trim()) {
+    chrome.runtime.sendMessage({
+      type: "clipboard_text",
+      data: { text: text.trim() }
+    });
+  }
 });
 
 // ── GitHub repo extraction ────────────────────────────────────────────────────
@@ -113,13 +121,118 @@ function getTextLength() {
   return Math.min(body.length, 50000);
 }
 
+function getTextPreview() {
+  const body = document.body?.innerText || "";
+  return body.replace(/\s+/g, " ").trim().slice(0, 4000);
+}
+
 // Send text length once on load
 window.addEventListener("load", () => {
   chrome.runtime.sendMessage({
     type: "page_meta",
     data: {
       text_length: getTextLength(),
+      text_preview: getTextPreview(),
       title: document.title,
     }
   });
+}, { once: true });
+
+// SearXNG result re-ranking. This runs after results load and never blocks the page.
+function collectSearxngResults() {
+  const nodes = Array.from(document.querySelectorAll("#urls .result, article.result, .result"))
+    .filter(node => node.querySelector("a[href]"));
+
+  return nodes.slice(0, 20).map((node, index) => {
+    const link = node.querySelector("h3 a[href], a[href]");
+    const snippet = node.querySelector(".content, p");
+    const engine = node.querySelector(".engines, .engine");
+    return {
+      _index: index,
+      url: link?.href || "",
+      title: link?.textContent?.trim() || "",
+      content: snippet?.textContent?.trim() || "",
+      engine: engine?.textContent?.trim() || "searxng",
+      score: Math.max(1, 20 - index),
+    };
+  }).filter(result => result.url && result.title);
+}
+
+function applySearxngRanking(rankedResults) {
+  const nodes = Array.from(document.querySelectorAll("#urls .result, article.result, .result"))
+    .filter(node => node.querySelector("a[href]"));
+  if (!nodes.length || !rankedResults?.length) return;
+
+  const parent = nodes[0].parentElement;
+  if (!parent) return;
+
+  const byUrl = new Map();
+  nodes.forEach(node => {
+    const link = node.querySelector("h3 a[href], a[href]");
+    if (link?.href) byUrl.set(link.href, node);
+  });
+
+  rankedResults.forEach((result, index) => {
+    const node = byUrl.get(result.url);
+    if (!node) return;
+    node.dataset.bilRanked = "true";
+    let badge = node.querySelector(".bil-rank-badge");
+    if (!badge) {
+      badge = document.createElement("span");
+      badge.className = "bil-rank-badge";
+      badge.style.cssText = "display:inline-block;margin-left:8px;padding:2px 6px;border-radius:6px;background:#f59e0b22;color:#b45309;font-size:11px;font-weight:600;";
+      const title = node.querySelector("h3") || node;
+      title.appendChild(badge);
+    }
+    badge.textContent = `BIL ${index + 1} · ${result.final_score ?? result.bil_score ?? ""}`;
+    parent.appendChild(node);
+  });
+}
+
+function maybeRankSearxng() {
+  const looksLikeSearxng = location.pathname.includes("search")
+    || document.querySelector('input[name="q"]')
+    || document.querySelector("#urls");
+  if (!looksLikeSearxng) return;
+
+  const results = collectSearxngResults();
+  if (!results.length) return;
+  chrome.runtime.sendMessage({ type: "rank_search_results", results });
+}
+
+document.addEventListener("click", (event) => {
+  const link = event.target?.closest?.("a[href]");
+  if (!link) return;
+
+  const resultNode = link.closest("#urls .result, article.result, .result");
+  if (!resultNode) return;
+
+  const results = Array.from(document.querySelectorAll("#urls .result, article.result, .result"))
+    .filter(node => node.querySelector("a[href]"));
+  const position = results.indexOf(resultNode) + 1;
+  if (position <= 0) return;
+
+  const query = document.querySelector('input[name="q"]')?.value
+    || new URLSearchParams(location.search).get("q")
+    || "";
+
+  chrome.runtime.sendMessage({
+    type: "search_result_click",
+    data: {
+      query,
+      position,
+      url: link.href,
+      title: link.textContent?.trim() || "",
+    }
+  });
+}, true);
+
+chrome.runtime.onMessage.addListener((message) => {
+  if (message.type === "ranked_search_results" && message.data?.results) {
+    applySearxngRanking(message.data.results);
+  }
+});
+
+window.addEventListener("load", () => {
+  setTimeout(maybeRankSearxng, 800);
 }, { once: true });

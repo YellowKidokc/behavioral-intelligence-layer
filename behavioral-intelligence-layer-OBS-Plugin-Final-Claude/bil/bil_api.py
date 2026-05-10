@@ -1,5 +1,6 @@
 """Behavioral Intelligence Layer — clean interface for all systems."""
 import json
+import pickle
 from datetime import datetime
 from pathlib import Path
 
@@ -12,14 +13,15 @@ class BIL:
     def __init__(self, export_path: str = None):
         if export_path is None:
             export_path = str(Path(__file__).parent.parent / "exports")
-        self.models = {
+        self.export_path = Path(export_path)
+        self.export_path.mkdir(parents=True, exist_ok=True)
+        self.model_path = self.export_path / "bil_models.pkl"
+        self.models = self._load_models() or {
             "web": WebModel(),
             "clipboard": ClipboardModel(),
             "files": FileModel(),
             "content": ContentModel(),
         }
-        self.export_path = Path(export_path)
-        self.export_path.mkdir(parents=True, exist_ok=True)
 
     def learn(self, model_name: str, features: dict, signal: float):
         """Feed a behavioral signal into a model.
@@ -33,6 +35,7 @@ class BIL:
             raise ValueError(f"Unknown model: {model_name}. Options: {list(self.models)}")
         self.models[model_name].learn(features, signal)
         self._log_event(model_name, features, signal)
+        self._save_models()
 
     def predict(self, model_name: str, features: dict) -> float:
         """Get a relevance prediction (0-1) for given features."""
@@ -55,6 +58,22 @@ class BIL:
         export_file.write_text(json.dumps(digest, indent=2, default=str), encoding="utf-8")
         return str(export_file)
 
+    def decide(self, model_name: str, features: dict) -> dict:
+        score = self.predict(model_name, features)
+        if score >= 0.72:
+            action = "prioritize"
+            reason = "Strong match to learned preference signals."
+        elif score >= 0.55:
+            action = "consider"
+            reason = "Moderate match; worth keeping in the queue."
+        elif score >= 0.40:
+            action = "neutral"
+            reason = "Not enough learned signal either way."
+        else:
+            action = "deprioritize"
+            reason = "Weak match to learned preference signals."
+        return {"score": round(score, 4), "action": action, "reason": reason}
+
     def _log_event(self, model_name: str, features: dict, signal: float):
         """Log event to disk (Postgres optional — falls back to JSON log)."""
         try:
@@ -67,5 +86,21 @@ class BIL:
             }
             with open(log_file, "a", encoding="utf-8") as f:
                 f.write(json.dumps(entry, default=str) + "\n")
+        except Exception:
+            pass
+
+    def _load_models(self):
+        try:
+            if self.model_path.exists():
+                with open(self.model_path, "rb") as f:
+                    return pickle.load(f)
+        except Exception:
+            return None
+        return None
+
+    def _save_models(self):
+        try:
+            with open(self.model_path, "wb") as f:
+                pickle.dump(self.models, f)
         except Exception:
             pass

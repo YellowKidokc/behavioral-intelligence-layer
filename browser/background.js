@@ -9,6 +9,7 @@ const NAS_GITHUB_URL = "http://192.168.1.177:8420/github";
 
 // Tab state map
 const tabState = {};
+const pendingSearchClicks = {};
 
 // ── Tab activation ────────────────────────────────────────────────────────────
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
@@ -65,6 +66,16 @@ chrome.bookmarks.onCreated.addListener(async (id, bookmark) => {
 
 // ── Messages from content script ──────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((message, sender) => {
+  if (message.type === "rank_search_results") {
+    rankSearchResults(message.results || []).then((data) => {
+      chrome.tabs.sendMessage(sender.tab.id, {
+        type: "ranked_search_results",
+        data
+      });
+    });
+    return true;
+  }
+
   if (!sender.tab) return;
   const tabId = sender.tab.id;
   if (!tabState[tabId]) return;
@@ -78,6 +89,21 @@ chrome.runtime.onMessage.addListener((message, sender) => {
       tabState[tabId].copied = true;
       break;
 
+    case "clipboard_text":
+      tabState[tabId].copied = true;
+      sendClipboardSignal(message.data || {}, sender.tab);
+      break;
+
+    case "search_result_click":
+      pendingSearchClicks[message.data?.url] = {
+        query: message.data?.query || "",
+        position: message.data?.position ?? null,
+        title: message.data?.title || "",
+        source: sender.tab.url || "",
+        clicked_at: Date.now(),
+      };
+      break;
+
     case "github_data":
       // Merge GitHub-specific data into tab state
       if (message.data) {
@@ -88,10 +114,24 @@ chrome.runtime.onMessage.addListener((message, sender) => {
     case "page_meta":
       if (message.data) {
         tabState[tabId].text_length = message.data.text_length || 0;
+        tabState[tabId].text_preview = message.data.text_preview || "";
       }
       break;
   }
 });
+
+async function rankSearchResults(results) {
+  try {
+    const response = await fetch("http://localhost:8420/bil/rank", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ results })
+    });
+    return await response.json();
+  } catch (e) {
+    return { error: "rank_failed", results };
+  }
+}
 
 // ── Signal sending ────────────────────────────────────────────────────────────
 async function sendSignal(tabId) {
@@ -113,7 +153,17 @@ async function sendSignal(tabId) {
     copied: state.copied,
     bookmarked: state.bookmarked,
     text_length: state.text_length || 0,
+    text_preview: state.text_preview || "",
   };
+
+  const searchClick = pendingSearchClicks[state.url];
+  if (searchClick) {
+    payload.search_query = searchClick.query;
+    payload.search_result_position = searchClick.position;
+    payload.search_result_title = searchClick.title;
+    payload.search_source = searchClick.source;
+    delete pendingSearchClicks[state.url];
+  }
 
   try {
     await fetch(BIL_URL, {
@@ -154,6 +204,25 @@ async function sendSignal(tabId) {
   }
 }
 
+async function sendClipboardSignal(data, tab) {
+  const text = (data.text || "").trim();
+  if (!text) return;
+
+  try {
+    await fetch("http://localhost:8420/bil/clipboard", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text: text.slice(0, 5000),
+        app: new URL(tab.url).hostname || "browser",
+        used: false,
+        url: tab.url,
+        title: tab.title || ""
+      })
+    });
+  } catch (e) {}
+}
+
 // ── Helper ────────────────────────────────────────────────────────────────────
 function freshState(url, title, active, now) {
   return {
@@ -166,6 +235,7 @@ function freshState(url, title, active, now) {
     copied: false,
     bookmarked: false,
     text_length: 0,
+    text_preview: "",
     github: null,
   };
 }

@@ -21,11 +21,19 @@ class BILHandler(BaseHTTPRequestHandler):
 
         if p == "/bil/clipboard/predict":
             self._handle_clipboard_predict(parsed)
+        elif p == "/bil/decide":
+            self._handle_decide(parsed)
         elif p == "/bil/status":
             self._json_response({
                 "status": "ok",
                 "models": {name: model.get_summary() for name, model in self.bil.models.items()},
                 "clipboard_history_size": len(self.clipboard_history),
+                "decision_bands": {
+                    "prioritize": "score >= 0.72",
+                    "consider": "0.55 - 0.71",
+                    "neutral": "0.40 - 0.54",
+                    "deprioritize": "score < 0.40",
+                },
             })
         else:
             self.send_response(404)
@@ -43,6 +51,8 @@ class BILHandler(BaseHTTPRequestHandler):
             self._handle_rank(body)
         elif self.path == "/bil/github":
             self._handle_github(body)
+        elif self.path == "/bil/decide":
+            self._handle_decide_post(body)
         else:
             self.send_response(404)
             self.end_headers()
@@ -52,12 +62,18 @@ class BILHandler(BaseHTTPRequestHandler):
         data = json.loads(body)
         features, signal = extract_web_features(
             url=data.get("url", ""),
-            text="",
+            text=data.get("text_preview") or data.get("title", ""),
             time_on_page=data.get("time_on_page", 0),
             scrolled_bottom=data.get("scrolledBottom", False),
             bookmarked=data.get("bookmarked", False),
             copied=data.get("copied", False),
         )
+        if data.get("search_query"):
+            features["search_query"] = data.get("search_query", "")
+        if data.get("search_result_position") is not None:
+            features["search_result_position"] = int(data.get("search_result_position") or 0)
+            if features["search_result_position"] > 3 and signal > 0.5:
+                signal += 0.1
         self.bil.learn("web", features, signal)
         self._json_response({"status": "ok"})
 
@@ -183,6 +199,35 @@ class BILHandler(BaseHTTPRequestHandler):
 
         self._json_response({"status": "ok", "repo": repo, "score": round(score, 4)})
 
+    def _handle_decide(self, parsed):
+        """Score one URL/title/snippet and return a decision band."""
+        qs = parse_qs(parsed.query)
+        data = {
+            "url": qs.get("url", [""])[0],
+            "title": qs.get("title", [""])[0],
+            "content": qs.get("content", [""])[0],
+            "engine": qs.get("engine", ["manual"])[0],
+            "score": float(qs.get("score", ["1"])[0] or 1),
+            "position": int(qs.get("position", ["0"])[0] or 0),
+        }
+        self._score_candidate(data)
+
+    def _handle_decide_post(self, body: bytes):
+        self._score_candidate(json.loads(body))
+
+    def _score_candidate(self, data: dict):
+        from bil.bil_features import extract_search_result_features
+        features = extract_search_result_features(
+            url=data.get("url", ""),
+            title=data.get("title", ""),
+            snippet=data.get("content", "") or data.get("snippet", ""),
+            engine=data.get("engine", "manual"),
+            score=float(data.get("score", 1) or 1),
+            position=int(data.get("position", 0) or 0),
+        )
+        decision = self.bil.decide("web", features)
+        self._json_response({"candidate": data, "decision": decision})
+
     def _handle_rank(self, body: bytes):
         """Re-rank SearXNG results using BIL web model."""
         from bil.bil_features import extract_search_result_features
@@ -236,6 +281,8 @@ def start_bil_server(port: int = 8420):
     print(f"  POST /bil/clipboard    - learn from clipboard events")
     print(f"  POST /bil/rank         - re-rank SearXNG results")
     print(f"  POST /bil/github       - learn from GitHub repo events")
+    print(f"  GET  /bil/decide       - score one URL/title/snippet")
+    print(f"  POST /bil/decide       - score one candidate JSON object")
     print(f"  GET  /bil/clipboard/predict - get clipboard predictions")
     print(f"  GET  /bil/status       - server status + model stats")
     server.serve_forever()
