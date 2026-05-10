@@ -86,6 +86,11 @@ pre{white-space:pre-wrap;background:#0b0b0f;border:1px solid var(--line);border-
   </section>
 
   <section class="card">
+    <h2>Clipboard Patterns</h2>
+    <div id="clipboardPatterns"></div>
+  </section>
+
+  <section class="card">
     <h2>Score A Candidate</h2>
     <input id="candidateUrl" placeholder="URL">
     <div style="height:8px"></div>
@@ -139,8 +144,9 @@ async function refresh() {
     document.getElementById('keywords').innerHTML = pills(data.keywords);
     document.getElementById('clipboard').innerHTML = rows(data.clipboard?.recent?.map(item => ({
       name: `${item.text || ''}`,
-      count: item.score ?? item.bil_score ?? ''
+      count: item.repeat_count ? `x${item.repeat_count}` : (item.score ?? item.bil_score ?? '')
     })));
+    document.getElementById('clipboardPatterns').innerHTML = rows(data.clipboard?.frequent);
   } catch (err) {
     document.getElementById('models').innerHTML = `<span class="bad">BIL not reachable: ${escapeHtml(err.message)}</span>`;
   }

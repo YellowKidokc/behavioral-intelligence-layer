@@ -274,6 +274,8 @@ class BILHandler(BaseHTTPRequestHandler):
         queries = Counter()
         positions = []
         keywords = Counter()
+        clipboard_counts = Counter()
+        clipboard_examples = {}
         signal_by_domain = defaultdict(list)
 
         for event in events:
@@ -293,6 +295,14 @@ class BILHandler(BaseHTTPRequestHandler):
                 positions.append(int(features.get("search_result_position") or 0))
             for kw in features.get("top_keywords") or features.get("text_keywords") or []:
                 keywords[kw] += 1
+
+        for entry in self.clipboard_history:
+            text = (entry.get("text") or "").strip()
+            if not text:
+                continue
+            key = entry.get("hash") or text[:120]
+            clipboard_counts[key] += int(entry.get("repeat_count") or 1)
+            clipboard_examples[key] = text[:180]
 
         domain_scores = []
         for domain, signals in signal_by_domain.items():
@@ -328,6 +338,10 @@ class BILHandler(BaseHTTPRequestHandler):
             "clipboard": {
                 "history_size": len(self.clipboard_history),
                 "recent": self.clipboard_history[-limit:][::-1],
+                "frequent": [
+                    {"name": clipboard_examples.get(key, key), "count": count}
+                    for key, count in clipboard_counts.most_common(limit)
+                ],
             },
             "keywords": top_pairs(keywords, limit),
             "github": {
