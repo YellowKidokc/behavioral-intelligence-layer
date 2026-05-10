@@ -71,6 +71,8 @@ The Cloudflare dashboard should start by calling a small set of tunnel endpoints
 - `POST /capture` - Send a new event into the engine.
 - `POST /ask` - Ask the personal dashboard a question using local context.
 - `POST /action/propose` - Queue a suggested action for approval.
+- `GET /notifications/poll` - Let workers check for live workflow notifications.
+- `POST /notifications/ack` - Worker acknowledges, defers, or completes a notification.
 
 Current local BIL endpoints already cover part of this:
 
@@ -104,6 +106,71 @@ The cleanest shape is:
 - The mini PC proxies local pages from BIL, AI-HUB, NAS search, and future tools.
 
 This lets the dashboard show local tools in panels or tabs while keeping local services off the open internet.
+
+## MCP / Control Hub Layer
+
+The comms dashboard should become an MCP-style workflow hub, not just a visual page.
+
+Core idea:
+
+- Comms is the operating channel.
+- BIL is memory and preference intelligence.
+- Dashboard is the human control tower.
+- MCP/tools layer lets AI workers access the same hub programmatically.
+
+Future tools/resources:
+
+- `check_comms`
+- `post_handoff`
+- `get_bil_context`
+- `search_handoffs`
+- `list_open_loops`
+- `get_notifications`
+- `ack_notification`
+- `run_daily_snapshot`
+- `ask_preference_engine`
+- `propose_action`
+
+The goal is that Codex, Claude, Gemini, local agents, and future workers can all enter the same hub, read the same workflow state, and coordinate without David manually copy/pasting every update.
+
+## Real-Time Notification Layer
+
+The missing layer is live awareness.
+
+The system should not constantly interrupt workers, but it should let them know when something matters.
+
+Notification levels:
+
+- `info` - no interruption; visible in dashboard/comms.
+- `soft` - worker should notice soon, but can finish current thought.
+- `checkpoint` - worker should stop at the next safe pause and inspect.
+- `urgent` - worker should interrupt and inspect now.
+
+Examples:
+
+- A new comms message arrived for the worker.
+- David answered a blocking question.
+- Another AI found a contradiction.
+- A build/test failed.
+- A high-priority open loop was assigned.
+- A security/privacy issue was flagged.
+- A daily snapshot is ready.
+
+Worker behavior:
+
+- Poll or subscribe for notifications.
+- If busy, acknowledge as `defer`.
+- If at a safe stopping point, acknowledge as `inspect`.
+- If complete, acknowledge as `done`.
+- Always include the notification id in the handoff.
+
+Implementation options:
+
+- Simple first version: polling endpoint every 30-60 seconds.
+- Better version: Server-Sent Events from the Cloudflare Worker or tunnel worker.
+- Later version: WebSocket/session channel for active AI workers.
+
+Do not start with complex orchestration. Start with reliable notification records in D1 and a polling endpoint.
 
 ## Security Rules
 

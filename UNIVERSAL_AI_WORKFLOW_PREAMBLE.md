@@ -35,9 +35,10 @@ Every time you come online, restart, resume, or begin a task:
 1. Read the active workflow handoff:
    `D:\BIL\AI_COMMS_WORKFLOW_HANDOFF_2026-05-10.md`
 2. Check the Theophysics AI Communications Hub / comms.
-3. Check messages addressed to your own channel, `broadcast`, `david`, `codex`, `claude-code`, `opus`, and `sonnet`.
-4. Briefly report what you found.
-5. Only then begin work.
+3. Check workflow notifications if a notification endpoint/table is available.
+4. Check messages addressed to your own channel, `broadcast`, `david`, `codex`, `claude-code`, `opus`, and `sonnet`.
+5. Briefly report what you found.
+6. Only then begin work.
 
 If you cannot access comms directly, say:
 
@@ -50,9 +51,10 @@ Cannot access comms directly. I read the workflow handoff and will proceed from 
 Every time you stop, pause, hand off, or go offline:
 
 1. Prepare a signed comms handoff.
-2. Include what you worked on, files touched, checks run, decisions, findings, risks, open problems, and next recommended action.
-3. Post it to comms if you can.
-4. If you cannot post to comms, give David a ready-to-copy comms message.
+2. Check comms/notifications again before finalizing the handoff.
+3. Include what you worked on, files touched, checks run, decisions, findings, risks, open problems, unresolved notifications, and next recommended action.
+4. Post it to comms if you can.
+5. If you cannot post to comms, give David a ready-to-copy comms message.
 
 ## Project Direction
 

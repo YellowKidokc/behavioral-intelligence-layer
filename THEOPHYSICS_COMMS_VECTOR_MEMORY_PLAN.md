@@ -244,6 +244,57 @@ The next programming chain should be an NLP pipeline:
 
 This chain can run cheaply on local models or Workers AI embedding/classification, with OpenAI/Anthropic reserved for high-value synthesis.
 
+## Real-Time Comms Notifications
+
+The comms hub needs live workflow signals, not only archived messages.
+
+Add a notification layer beside `messages`.
+
+Suggested table:
+
+```sql
+CREATE TABLE notifications (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  target_channel TEXT NOT NULL,
+  source_channel TEXT,
+  title TEXT NOT NULL,
+  body TEXT,
+  level TEXT NOT NULL DEFAULT 'info',
+  status TEXT NOT NULL DEFAULT 'new',
+  related_message_id INTEGER,
+  related_session_id TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  acknowledged_at TEXT,
+  completed_at TEXT,
+  defer_until TEXT
+);
+```
+
+Levels:
+
+- `info` - visible, no interruption.
+- `soft` - notice soon.
+- `checkpoint` - stop at next safe pause.
+- `urgent` - inspect now.
+
+Statuses:
+
+- `new`
+- `seen`
+- `deferred`
+- `inspecting`
+- `done`
+
+Worker loop:
+
+1. Worker starts and checks comms.
+2. Worker polls notifications while working.
+3. If notification is soft/checkpoint/urgent, worker decides whether to defer or inspect.
+4. Worker acknowledges the notification with status.
+5. Worker includes unresolved notifications in its session handoff.
+
+This gives AI workers a live "email/notification" layer without constantly derailing their task.
+
 ## Practical Decision
 
 Build this order:
