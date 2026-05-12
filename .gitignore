@@ -51,3 +51,12 @@ inbox/
 # Temp
 *.tmp
 *.bak
+
+# FAP runtime data (lives at D:\FAP\, not in repo)
+# The engine CODE is in engines/pipeline/ and IS committed
+# The runtime FOLDERS (intake, classified, queue, etc.) are NOT
+# Wiki content from D:\FAP\wiki\ is committed separately if needed
+
+# Claude MCP / Desktop Commander
+.claude/
+.remember/
